@@ -35,6 +35,12 @@ class TankGame extends Phaser.Scene {
     this.load.image('water', '/assets/tiles/water.png');
     this.load.image('ice', '/assets/tiles/ice.png');
     this.load.image('tank', '/assets/PlayerAssets/tankv1.png');
+    this.load.image('bullet', '/assets/bullet.png'); 
+    this.load.spritesheet('explosion', '/assets/explosion.png', {
+      frameWidth: 70,
+      frameHeight: 65
+    });
+
   }
 
   create() {
@@ -53,6 +59,14 @@ class TankGame extends Phaser.Scene {
     this.time.delayedCall(8000, () => {
       this.scheduleBonus();
     });
+
+    this.anims.create({
+      key: 'explode',
+      frames: this.anims.generateFrameNumbers('explosion', { start: 0, end: 4 }),
+      frameRate: 1,        // adjust speed as you like
+      hideOnComplete: true, // hides the sprite when done
+    });
+    
 
   }
 
@@ -108,6 +122,8 @@ class TankGame extends Phaser.Scene {
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
+      fire: Phaser.Input.Keyboard.KeyCodes.F,
+
     });
   }
 
@@ -175,6 +191,83 @@ class TankGame extends Phaser.Scene {
     
     bonus.destroy(); // Remove the bonus from the scene
   }
+
+
+  spawnCollisionEffect(x, y) {
+    // Add your collision sprite, e.g., explosion
+    const explosion = this.add.sprite(x, y, 'explosion');
+    explosion.setOrigin(0.5);
+    explosion.setScale(1);
+  
+    // Play animation if you have one, or just destroy after delay
+    this.time.delayedCall(500, () => {
+      explosion.destroy();
+    });
+  }
+  
+  
+  fireBullet() {
+    if (!this.tank) return;
+  
+    const angle = Phaser.Math.Wrap(this.tank.angle, 0, 360);
+    const snappedAngle = Phaser.Math.Snap.To(angle, 90);
+  
+    const bullet = this.add.image(this.tank.x, this.tank.y, 'bullet');
+    bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
+    bullet.setOrigin(0.5);
+  
+    const direction = new Phaser.Math.Vector2(0, 0);
+    switch (snappedAngle) {
+      case 0:
+        direction.y = -1;
+        break;
+      case 90:
+        direction.x = 1;
+        break;
+      case 180:
+        direction.y = 1;
+        break;
+      case 270:
+        direction.x = -1;
+        break;
+      default:
+        direction.y = -1;
+    }
+  
+    const moveBullet = () => {
+      const nextX = bullet.x + direction.x * TILE_SIZE;
+      const nextY = bullet.y + direction.y * TILE_SIZE;
+  
+      const row = Math.floor(nextY / TILE_SIZE);
+      const col = Math.floor(nextX / TILE_SIZE);
+  
+      if (
+        row < 0 || row >= this.levelMap.length ||
+        col < 0 || col >= this.levelMap[0].length ||
+        !this.isWalkable(row, col)
+      ) {
+
+        // Spawn collision sprite at bullet position
+        this.spawnCollisionEffect(bullet.x, bullet.y);  
+        
+        bullet.destroy(); // Hit wall or out of bounds
+
+        return;
+      }
+  
+      this.tweens.add({
+        targets: bullet,
+        x: nextX,
+        y: nextY,
+        duration: 100,
+        onComplete: () => {
+          moveBullet(); // Continue moving
+        }
+      });
+    };
+  
+    moveBullet();
+  }
   
 
   update(time) {
@@ -202,6 +295,12 @@ class TankGame extends Phaser.Scene {
         this.lastMoveTime = time;
       }
     }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.fire)) {
+      this.fireBullet();
+    }
+
+
     this.checkBonusCollection();
   }
 
