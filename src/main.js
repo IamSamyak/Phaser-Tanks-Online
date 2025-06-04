@@ -11,6 +11,18 @@ const tileMapping = {
 
 const TILE_SIZE = 32;
 
+const bonusTypes = [
+  { key: 'bonus_boat', effect: 'boat', path: '/assets/bonuses/bonus_boat.png' },
+  { key: 'bonus_clock', effect: 'clock', path: '/assets/bonuses/bonus_clock.png' },
+  { key: 'bonus_grenade', effect: 'grenade', path: '/assets/bonuses/bonus_grenade.png' },
+  { key: 'bonus_gun', effect: 'gun', path: '/assets/bonuses/bonus_gun.png' },
+  { key: 'bonus_helmet', effect: 'helmet', path: '/assets/bonuses/bonus_helmet.png' },
+  { key: 'bonus_shovel', effect: 'shovel', path: '/assets/bonuses/bonus_shovel.png' },
+  { key: 'bonus_star', effect: 'star', path: '/assets/bonuses/bonus_star.png' },
+  { key: 'bonus_tank', effect: 'tank', path: '/assets/bonuses/bonus_tank.png' },
+];
+
+
 class TankGame extends Phaser.Scene {
   constructor() {
     super({ key: 'TankGame' });
@@ -36,6 +48,12 @@ class TankGame extends Phaser.Scene {
         this.setupControls();
       })
       .catch(err => console.error('Failed to load level:', err));
+
+    this.bonusGroup = this.add.group();
+    this.time.delayedCall(8000, () => {
+      this.scheduleBonus();
+    });
+
   }
 
   renderLevel(levelData) {
@@ -93,32 +111,99 @@ class TankGame extends Phaser.Scene {
     });
   }
 
- update(time) {
-  if (!this.tank) return;
-
-  if (!this.lastMoveTime || time - this.lastMoveTime > 200) { // Adjust 200ms delay as needed
-    const tankRow = Math.floor(this.tank.y / TILE_SIZE);
-    const tankCol = Math.floor(this.tank.x / TILE_SIZE);
-
-    if (this.cursors.up.isDown && this.isWalkable(tankRow - 1, tankCol)) {
-      this.tank.y -= TILE_SIZE;
-      this.tank.setAngle(0); // Facing up
-      this.lastMoveTime = time;
-    } else if (this.cursors.down.isDown && this.isWalkable(tankRow + 1, tankCol)) {
-      this.tank.y += TILE_SIZE;
-      this.tank.setAngle(180); // Facing down
-      this.lastMoveTime = time;
-    } else if (this.cursors.left.isDown && this.isWalkable(tankRow, tankCol - 1)) {
-      this.tank.x -= TILE_SIZE;
-      this.tank.setAngle(270); // Facing left
-      this.lastMoveTime = time;
-    } else if (this.cursors.right.isDown && this.isWalkable(tankRow, tankCol + 1)) {
-      this.tank.x += TILE_SIZE;
-      this.tank.setAngle(90); // Facing right
-      this.lastMoveTime = time;
-    }
+  scheduleBonus() {
+    this.spawnBonus().then(() => {
+      this.time.delayedCall(6000, () => {
+        this.scheduleBonus();
+      });
+    });
   }
-}
+  
+  async spawnBonus() {
+    const walkableTiles = [];
+  
+    for (let row = 0; row < this.levelMap.length; row++) {
+      for (let col = 0; col < this.levelMap[row].length; col++) {
+        if (this.isWalkable(row, col)) {
+          walkableTiles.push({ row, col });
+        }
+      }
+    }
+  
+    if (walkableTiles.length === 0) return;
+  
+    const { row, col } = Phaser.Utils.Array.GetRandom(walkableTiles);
+    const bonusType = Phaser.Utils.Array.GetRandom(bonusTypes);
+    const x = (col + 0.5) * TILE_SIZE;
+    const y = (row + 0.5) * TILE_SIZE;
+  
+    // Load the bonus image if not already in cache
+    if (!this.textures.exists(bonusType.key)) {
+      await new Promise(resolve => {
+        this.load.image(bonusType.key, bonusType.path);
+        this.load.once('complete', resolve);
+        this.load.start();
+      });
+    }
+  
+    const bonus = this.add.image(x, y, bonusType.key);
+    bonus.setDisplaySize(TILE_SIZE, TILE_SIZE);
+    bonus.setOrigin(0.5, 0.5);
+    bonus.bonusEffect = bonusType.effect;
+    this.bonusGroup.add(bonus);
+  
+    // Remove after 5 seconds
+    this.time.delayedCall(5000, () => {
+      if (bonus.active) bonus.destroy();
+    });
+  }
+  
+  checkBonusCollection() {
+    this.bonusGroup.getChildren().forEach(bonus => {
+      const distance = Phaser.Math.Distance.Between(this.tank.x, this.tank.y, bonus.x, bonus.y);
+      if (distance < TILE_SIZE) { // Close enough to collect
+        this.collectBonus(bonus);
+      }
+    });
+  }
+  
+  collectBonus(bonus) {
+    // Apply the effect — for now, just log it
+    console.log(`Collected bonus: ${bonus.bonusEffect}`);
+  
+    // TODO: Add logic depending on the effect (like upgrade tank, etc.)
+    
+    bonus.destroy(); // Remove the bonus from the scene
+  }
+  
+
+  update(time) {
+    if (!this.tank) return;
+
+    if (!this.lastMoveTime || time - this.lastMoveTime > 200) { // Adjust 200ms delay as needed
+      const tankRow = Math.floor(this.tank.y / TILE_SIZE);
+      const tankCol = Math.floor(this.tank.x / TILE_SIZE);
+
+      if (this.cursors.up.isDown && this.isWalkable(tankRow - 1, tankCol)) {
+        this.tank.y -= TILE_SIZE;
+        this.tank.setAngle(0); // Facing up
+        this.lastMoveTime = time;
+      } else if (this.cursors.down.isDown && this.isWalkable(tankRow + 1, tankCol)) {
+        this.tank.y += TILE_SIZE;
+        this.tank.setAngle(180); // Facing down
+        this.lastMoveTime = time;
+      } else if (this.cursors.left.isDown && this.isWalkable(tankRow, tankCol - 1)) {
+        this.tank.x -= TILE_SIZE;
+        this.tank.setAngle(270); // Facing left
+        this.lastMoveTime = time;
+      } else if (this.cursors.right.isDown && this.isWalkable(tankRow, tankCol + 1)) {
+        this.tank.x += TILE_SIZE;
+        this.tank.setAngle(90); // Facing right
+        this.lastMoveTime = time;
+      }
+    }
+    this.checkBonusCollection();
+  }
 
 
   getTankCorners(x, y) {
@@ -145,7 +230,7 @@ class TankGame extends Phaser.Scene {
 
 const config = {
   type: Phaser.AUTO,
-  width: 800,
+  width: 832,
   height: 832,
   backgroundColor: '#222222',
   parent: 'game-container',
