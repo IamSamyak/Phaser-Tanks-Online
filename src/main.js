@@ -93,44 +93,33 @@ class TankGame extends Phaser.Scene {
     });
   }
 
-  update(time, delta) {
-    if (!this.tank) return;
+ update(time) {
+  if (!this.tank) return;
 
-    const speed = this.tankSpeed * (delta / 1000);
-    const tank = this.tank;
+  if (!this.lastMoveTime || time - this.lastMoveTime > 200) { // Adjust 200ms delay as needed
+    const tankRow = Math.floor(this.tank.y / TILE_SIZE);
+    const tankCol = Math.floor(this.tank.x / TILE_SIZE);
 
-    let dx = 0, dy = 0, angle = tank.angle;
-
-    if (this.cursors.up.isDown) {
-      angle = 0;
-      dy = -speed;
-    } else if (this.cursors.down.isDown) {
-      angle = 180;
-      dy = speed;
-    } else if (this.cursors.left.isDown) {
-      angle = 270;
-      dx = -speed;
-    } else if (this.cursors.right.isDown) {
-      angle = 90;
-      dx = speed;
-    }
-
-    tank.setAngle(angle);
-
-    if (dx !== 0 || dy !== 0) {
-      const nextX = tank.x + dx;
-      const nextY = tank.y + dy;
-
-      const corners = this.getTankCorners(nextX, nextY);
-
-      const canMove = corners.every(({ row, col }) => this.isWalkable(row, col));
-
-      if (canMove) {
-        tank.x = nextX;
-        tank.y = nextY;
-      }
+    if (this.cursors.up.isDown && this.isWalkable(tankRow - 1, tankCol)) {
+      this.tank.y -= TILE_SIZE;
+      this.tank.setAngle(0); // Facing up
+      this.lastMoveTime = time;
+    } else if (this.cursors.down.isDown && this.isWalkable(tankRow + 1, tankCol)) {
+      this.tank.y += TILE_SIZE;
+      this.tank.setAngle(180); // Facing down
+      this.lastMoveTime = time;
+    } else if (this.cursors.left.isDown && this.isWalkable(tankRow, tankCol - 1)) {
+      this.tank.x -= TILE_SIZE;
+      this.tank.setAngle(270); // Facing left
+      this.lastMoveTime = time;
+    } else if (this.cursors.right.isDown && this.isWalkable(tankRow, tankCol + 1)) {
+      this.tank.x += TILE_SIZE;
+      this.tank.setAngle(90); // Facing right
+      this.lastMoveTime = time;
     }
   }
+}
+
 
   getTankCorners(x, y) {
     const half = TILE_SIZE;
