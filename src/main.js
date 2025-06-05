@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 
+
 const tileMapping = {
   '.': 'empty',
   '#': 'brick',
@@ -27,6 +28,7 @@ class TankGame extends Phaser.Scene {
   constructor() {
     super({ key: 'TankGame' });
   }
+  
 
   preload() {
     this.load.image('brick', '/assets/tiles/brick.png');
@@ -36,6 +38,7 @@ class TankGame extends Phaser.Scene {
     this.load.image('ice', '/assets/tiles/ice.png');
     this.load.image('tank', '/assets/PlayerAssets/tankv1.png');
     this.load.image('bullet', '/assets/bullet.png'); 
+    this.load.image('base', '/assets/base.png' );
     this.load.spritesheet('explosion', '/assets/explosion.png', {
       frameWidth: 70,
       frameHeight: 65
@@ -44,6 +47,8 @@ class TankGame extends Phaser.Scene {
   }
 
   create() {
+    this.activeBonuses = {};
+
     this.tankSpeed = 100;
 
     fetch('/levels/1.txt')
@@ -51,6 +56,7 @@ class TankGame extends Phaser.Scene {
       .then(levelText => {
         this.renderLevel(levelText.trim());
         this.spawnTank(24, 9);
+        this.spawnAsset(24,12, 'base');
         this.setupControls();
       })
       .catch(err => console.error('Failed to load level:', err));
@@ -73,38 +79,40 @@ class TankGame extends Phaser.Scene {
   renderLevel(levelData) {
     const lines = levelData.split('\n').map(line => line.replace(/\r/g, ''));
     this.levelMap = lines.map(line => [...line]);
-
-    const graphics = this.add.graphics();
-
-    for (let y = 0; y < lines.length; y++) {
-      const row = lines[y];
-      for (let x = 0; x < row.length; x++) {
-        const char = row[x];
+    this.tileSprites = [];
+  
+    for (let y = 0; y < this.levelMap.length; y++) {
+      this.tileSprites[y] = [];
+  
+      for (let x = 0; x < this.levelMap[y].length; x++) {
+        const char = this.levelMap[y][x];
         const tileName = tileMapping[char];
         const xPos = x * TILE_SIZE;
         const yPos = y * TILE_SIZE;
-
-        if (!tileName) continue;
-
-        if (tileName === 'empty') {
-          graphics.fillStyle(0x000000, 1);
-          graphics.fillRect(xPos, yPos, TILE_SIZE, TILE_SIZE);
-        } else {
-          const tile = this.add.image(xPos, yPos, tileName);
-          tile.setOrigin(0, 0);
-          tile.setScale(TILE_SIZE / 16);
+  
+        if (!tileName || tileName === 'empty') {
+          this.tileSprites[y][x] = null;
+          continue;
         }
+  
+        const tile = this.add.image(xPos, yPos, tileName);
+        tile.setOrigin(0, 0);
+        tile.setScale(TILE_SIZE / 16);
+        this.tileSprites[y][x] = tile;
       }
     }
-
-    // Draw row/column numbers for reference
+  
+     // Optional: draw row/column numbers
+    
     for (let x = 0; x < this.levelMap[0].length; x++) {
       this.add.text(x * TILE_SIZE + 10, 0, x.toString(), { fontSize: '12px', color: '#00ff00' });
     }
     for (let y = 0; y < this.levelMap.length; y++) {
       this.add.text(0, y * TILE_SIZE + 8, y.toString(), { fontSize: '12px', color: '#00ff00' });
     }
+    
   }
+  
 
   spawnTank(row, col) {
     const centerX = (col + 1) * TILE_SIZE;
@@ -114,6 +122,16 @@ class TankGame extends Phaser.Scene {
     this.tank.setOrigin(0.5, 0.5);
     this.tank.setDisplaySize(TILE_SIZE * 2, TILE_SIZE * 2);
     this.tank.angle = 0;
+  }
+
+  spawnAsset(row, col, asset){
+    const centerX = (col + 1) * TILE_SIZE;
+    const centerY = (row + 1) * TILE_SIZE;
+
+    this.asset = this.add.image(centerX, centerY, asset);
+    this.asset.setOrigin(0.5, 0.5);
+    this.asset.setDisplaySize(TILE_SIZE * 2, TILE_SIZE * 2);
+    this.asset.angle = 0;
   }
 
   setupControls() {
@@ -184,15 +202,128 @@ class TankGame extends Phaser.Scene {
   }
   
   collectBonus(bonus) {
-    // Apply the effect — for now, just log it
-    console.log(`Collected bonus: ${bonus.bonusEffect}`);
+    const effect = bonus.bonusEffect;
+    console.log(`Collected bonus: ${effect}`);
   
-    // TODO: Add logic depending on the effect (like upgrade tank, etc.)
-    
-    bonus.destroy(); // Remove the bonus from the scene
+    this.activeBonuses[effect] = true;
+  
+    switch (effect) {
+      case 'helmet':
+        this.tank.setTint(0xffff00); // Yellow tint
+        break;
+  
+      case 'boat':
+        this.tank.setTint(0x3399ff); // Blue tint for water access
+        break;
+  
+      case 'gun':
+        this.bulletSpeed = 60; // Faster bullet tween
+        break;
+  
+      case 'grenade':
+        this.destroyEnemies();
+        break;
+  
+      case 'star':
+        this.tank.setTint(0xff00ff); // Purple tint
+        this.tankSpeed = 50; // Faster movement
+        this.bulletSpeed = 50;
+        break;
+  
+      case 'shovel':
+        this.reinforceBase();
+        break;
+  
+      case 'clock':
+        this.freezeEnemies();
+        break;
+  
+      case 'tank':
+        this.upgradeTank();
+        break;
+    }
+  
+    // Remove bonus after 10s if it's time-based
+    if (['helmet', 'boat', 'gun', 'star'].includes(effect)) {
+      this.time.delayedCall(10000, () => this.removeBonusEffect(effect));
+    }
+  
+    bonus.destroy();
+  }
+  
+
+  removeBonusEffect(effect) {
+    delete this.activeBonuses[effect];
+  
+    switch (effect) {
+      case 'helmet':
+      case 'boat':
+      case 'star':
+        this.tank.clearTint();
+        break;
+  
+      case 'gun':
+        this.bulletSpeed = 100;
+        break;
+  
+      case 'star':
+        this.tankSpeed = 100;
+        this.bulletSpeed = 100;
+        break;
+    }
+  
+    console.log(`Bonus ${effect} expired.`);
   }
 
+  
+  
+  destroyEnemies() {
+    console.log("Enemies Destroyed (mocked)");
 
+    // const row = Math.floor(this.tank.y / TILE_SIZE);
+    // const col = Math.floor(this.tank.x / TILE_SIZE);
+  
+    // for (let dy = -1; dy <= 1; dy++) {
+    //   for (let dx = -1; dx <= 1; dx++) {
+    //     const r = row + dy;
+    //     const c = col + dx;
+  
+    //     if (
+    //       r >= 0 && r < this.levelMap.length &&
+    //       c >= 0 && c < this.levelMap[0].length &&
+    //       this.levelMap[r][c] === '#'
+    //     ) {
+    //       // Update level map
+    //       this.levelMap[r][c] = '.';
+  
+    //       // Remove visual tile if exists
+    //       const tile = this.tileSprites?.[r]?.[c];
+    //       if (tile) {
+    //         tile.destroy();
+    //         this.tileSprites[r][c] = null;
+    //       }
+    //     }
+    //   }
+    // }
+  }
+  
+  
+  reinforceBase() {
+    console.log("Base reinforced (mocked)");
+    // Optional: draw some flashing tiles or reinforce base with stones visually
+  }
+  
+  upgradeTank() {
+    console.log("Tank upgraded!");
+    this.tank.setTint(0x00ff00); // Green to show level up
+    // Add features like double shot, health, etc. later
+  }
+
+  freezeEnemies() {
+    console.log("Enemies frozen (mocked)");
+    // You can implement enemy AI pause later
+  }
+  
   spawnCollisionEffect(x, y) {
     // Add your collision sprite, e.g., explosion
     const explosion = this.add.sprite(x, y, 'explosion');
@@ -259,7 +390,7 @@ class TankGame extends Phaser.Scene {
         targets: bullet,
         x: nextX,
         y: nextY,
-        duration: 100,
+        duration: this.bulletSpeed || 100,
         onComplete: () => {
           moveBullet(); // Continue moving
         }
@@ -268,7 +399,6 @@ class TankGame extends Phaser.Scene {
   
     moveBullet();
   }
-  
 
   update(time) {
     if (!this.tank) return;
