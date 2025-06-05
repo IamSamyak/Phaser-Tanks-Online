@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 
-
 const tileMapping = {
   '.': 'empty',
   '#': 'brick',
