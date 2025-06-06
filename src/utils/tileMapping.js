@@ -6,3 +6,6 @@ export const tileMapping = {
   '~': 'water',
   '-': 'ice',
 };
+
+
+export const TILE_SIZE = 32;
