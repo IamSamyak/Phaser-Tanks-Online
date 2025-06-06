@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
 import { tileMapping, TILE_SIZE } from '../utils/tileMapping.js';
+import {
+  getImpactTilesForBullet,
+  isTileBlocking,
+  isWithinMapBounds
+} from '../utils/TankHelper.js';
 
 export default class BulletManager {
   constructor(scene, levelMap, tankGameScene) {
@@ -9,7 +14,8 @@ export default class BulletManager {
   }
 
   fireBullet(tank, base, spawnCollisionEffect, bulletSpeed = 100) {
-    if (!tank) return;
+    if (!tank || !tank.base) return;
+    if (tank.base.activeBullets >= tank.base.maxBullets) return;
 
     const angle = Phaser.Math.Wrap(tank.angle, 0, 360);
     const snappedAngle = Phaser.Math.Snap.To(angle, 90);
@@ -18,71 +24,48 @@ export default class BulletManager {
     bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
     bullet.setOrigin(0.5);
 
+    tank.base.activeBullets++;
+
     const direction = new Phaser.Math.Vector2(0, 0);
     switch (snappedAngle) {
-      case 0:
-        direction.y = -1;
-        break;
-      case 90:
-        direction.x = 1;
-        break;
-      case 180:
-        direction.y = 1;
-        break;
-      case 270:
-        direction.x = -1;
-        break;
-      default:
-        direction.y = -1;
+      case 0: direction.y = -1; break;
+      case 90: direction.x = 1; break;
+      case 180: direction.y = 1; break;
+      case 270: direction.x = -1; break;
+      default: direction.y = -1;
     }
 
     const moveBullet = () => {
       const nextX = bullet.x + direction.x * TILE_SIZE;
       const nextY = bullet.y + direction.y * TILE_SIZE;
 
+      // 💥 Check collision with base
       if (base) {
         const distToBase = Phaser.Math.Distance.Between(bullet.x, bullet.y, base.x, base.y);
         if (distToBase < TILE_SIZE) {
+          tank.base.activeBullets--;
           alert('💥 Game Over! Your base was destroyed.');
           this.scene.scene.restart();
           return;
         }
       }
 
-      let impactTiles = [];
-
-      if (direction.y !== 0) {
-        const colLeft = Math.floor((bullet.x - TILE_SIZE / 2) / TILE_SIZE);
-        const colRight = Math.floor((bullet.x + TILE_SIZE / 2 - 1) / TILE_SIZE);
-        const row = Math.floor(nextY / TILE_SIZE);
-        impactTiles.push({ row, col: colLeft }, { row, col: colRight });
-      } else {
-        const rowTop = Math.floor((bullet.y - TILE_SIZE / 2) / TILE_SIZE);
-        const rowBottom = Math.floor((bullet.y + TILE_SIZE / 2 - 1) / TILE_SIZE);
-        const col = Math.floor(nextX / TILE_SIZE);
-        impactTiles.push({ row: rowTop, col }, { row: rowBottom, col });
-      }
+      const impactTiles = getImpactTilesForBullet(bullet, direction);
 
       let hitObstacle = false;
 
       for (const { row, col } of impactTiles) {
-        if (
-          row < 0 ||
-          row >= this.levelMap.length ||
-          col < 0 ||
-          col >= this.levelMap[0].length
-        ) {
+        if (!isWithinMapBounds(row, col, this.levelMap)) {
           hitObstacle = true;
           break;
         }
 
         const tileChar = this.levelMap[row][col];
-        const tileType = tileMapping[tileChar];
 
-        if (tileType !== 'empty' && tileType !== 'bush') {
+        if (isTileBlocking(tileChar)) {
           hitObstacle = true;
 
-          if (tileType === 'brick') {
+          if (tileMapping[tileChar] === 'brick') {
             const tileSprite = this.tankGameScene.tileSprites[row][col];
             if (tileSprite) tileSprite.destroy();
             this.levelMap[row][col] = '.';
@@ -92,8 +75,9 @@ export default class BulletManager {
       }
 
       if (hitObstacle) {
-        spawnCollisionEffect(nextX, nextY);
         bullet.destroy();
+        tank.base.activeBullets--;
+        spawnCollisionEffect(nextX, nextY);
         return;
       }
 
@@ -102,7 +86,7 @@ export default class BulletManager {
         x: nextX,
         y: nextY,
         duration: bulletSpeed,
-        onComplete: () => moveBullet(),
+        onComplete: () => moveBullet()
       });
     };
 

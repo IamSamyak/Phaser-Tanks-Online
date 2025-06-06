@@ -4,6 +4,7 @@ import BonusManager from '../managers/BonusManager.js';
 import BulletManager from '../managers/BulletManager.js';
 import SpawnManager from '../managers/SpawnManager.js';
 import TankController from '../managers/TankController.js';
+import TankBase from '../managers/TankBase.js'; // Import TankBase
 
 export default class TankGame extends Phaser.Scene {
   constructor() {
@@ -27,7 +28,7 @@ export default class TankGame extends Phaser.Scene {
       frameHeight: 65,
     });
 
-    // Bonus assets are dynamically loaded by BonusManager
+    // Bonus assets are loaded dynamically in BonusManager
   }
 
   create() {
@@ -42,16 +43,24 @@ export default class TankGame extends Phaser.Scene {
       .then((levelText) => {
         this.renderLevel(levelText.trim());
 
-        // Spawn tank and base using SpawnManager
+        // Spawn tank and base
         this.tank = this.spawnManager.spawnTank(24, 9);
         this.asset = this.spawnManager.spawnAsset(24, 12, 'base');
 
-        // Create bullet manager and bonus manager
+        // Attach base properties to tank
+        this.tank.base = new TankBase(this.tank);
+
+        // Create managers
         this.bonusManager = new BonusManager(this, this.levelMap, this.bonusGroup);
         this.bulletManager = new BulletManager(this, this.levelMap, this);
 
-        // Create tank controller and pass dependencies
-        this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
+        // Tank Controller (input + movement)
+        this.tankController = new TankController(
+          this,
+          this.tank,
+          this.bulletManager,
+          this.levelMap
+        );
 
         this.bonusManager.scheduleBonus();
       })
@@ -90,17 +99,19 @@ export default class TankGame extends Phaser.Scene {
       }
     }
 
-    // Optional: Draw grid numbers
+    // Optional debug grid
     for (let x = 0; x < this.levelMap[0].length; x++) {
-      this.add.text(x * TILE_SIZE + 10, 0, x.toString(), { fontSize: '12px', color: '#00ff00' });
+      this.add.text(x * TILE_SIZE + 10, 0, x.toString(), {
+        fontSize: '12px',
+        color: '#00ff00',
+      });
     }
     for (let y = 0; y < this.levelMap.length; y++) {
-      this.add.text(0, y * TILE_SIZE + 8, y.toString(), { fontSize: '12px', color: '#00ff00' });
+      this.add.text(0, y * TILE_SIZE + 8, y.toString(), {
+        fontSize: '12px',
+        color: '#00ff00',
+      });
     }
-  }
-
-  setupControls() {
-    // This is now handled inside TankController, so you can remove this method if unused
   }
 
   spawnCollisionEffect(x, y) {
@@ -108,7 +119,6 @@ export default class TankGame extends Phaser.Scene {
   }
 
   fireBullet() {
-    // Bullet firing is handled by TankController now, this method can be removed or kept if needed elsewhere
     this.bulletManager.fireBullet(
       this.tank,
       this.asset,
@@ -122,7 +132,6 @@ export default class TankGame extends Phaser.Scene {
 
     this.tankController.update(time);
 
-    // Bonus collection logic
     if (this.bonusManager) {
       this.bonusManager.checkBonusCollection(this.tank);
     }
