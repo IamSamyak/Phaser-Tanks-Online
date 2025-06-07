@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { canMove } from '../utils/TankHelper.js';
 import { TILE_SIZE } from '../utils/tileMapping.js';
 
@@ -8,7 +9,7 @@ export default class TankController {
     this.bulletManager = bulletManager;
     this.levelMap = levelMap;
     this.lastMoveTime = 0;
-    this.moveInterval = 200; // ms between moves
+    this.moveInterval = 200;
 
     this.cursors = this.scene.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -22,36 +23,58 @@ export default class TankController {
   update(time) {
     if (!this.tank) return;
 
+    let moved = false;
+
     if (!this.lastMoveTime || time - this.lastMoveTime > this.moveInterval) {
       if (this.cursors.up.isDown) {
         this.tank.setAngle(0);
         if (canMove(this.tank.x, this.tank.y - TILE_SIZE, this.levelMap)) {
           this.tank.y -= TILE_SIZE;
           this.lastMoveTime = time;
+          moved = true;
         }
       } else if (this.cursors.down.isDown) {
         this.tank.setAngle(180);
         if (canMove(this.tank.x, this.tank.y + TILE_SIZE, this.levelMap)) {
           this.tank.y += TILE_SIZE;
           this.lastMoveTime = time;
+          moved = true;
         }
       } else if (this.cursors.left.isDown) {
         this.tank.setAngle(270);
         if (canMove(this.tank.x - TILE_SIZE, this.tank.y, this.levelMap)) {
           this.tank.x -= TILE_SIZE;
           this.lastMoveTime = time;
+          moved = true;
         }
       } else if (this.cursors.right.isDown) {
         this.tank.setAngle(90);
         if (canMove(this.tank.x + TILE_SIZE, this.tank.y, this.levelMap)) {
           this.tank.x += TILE_SIZE;
           this.lastMoveTime = time;
+          moved = true;
         }
+      }
+
+      if (
+        moved &&
+        this.scene.socket &&
+        this.scene.socket.readyState === WebSocket.OPEN
+      ) {
+        this.scene.socket.send(
+          JSON.stringify({
+            type: 'move',
+            x: this.tank.x,
+            y: this.tank.y,
+            angle: this.tank.angle,
+          })
+        );
       }
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.cursors.fire)) {
-      this.bulletManager.fireBullet(this.tank, null, this.scene.spawnCollisionEffect.bind(this.scene));
+      this.bulletManager.fireBullet(this.tank);
+      // fireBullet internally handles socket messaging for fire and move
     }
   }
 }
