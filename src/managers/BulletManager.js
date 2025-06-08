@@ -27,14 +27,15 @@ export default class BulletManager {
 
     this.activeBullets.set(bulletId, bullet);
     tank.base.activeBullets++;
+    console.log('tanks is ', tank.x, tank.y);
 
     // Send fire bullet event to backend
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({
         type: 'fire_bullet',
         bulletId,
-        x: tank.x,
-        y: tank.y,
+        x: Math.floor(tank.x / TILE_SIZE),   // convert pixel x to tile x
+        y: Math.floor(tank.y / TILE_SIZE),   // convert pixel y to tile y
         angle
       }));
     }

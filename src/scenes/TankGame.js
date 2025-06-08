@@ -49,41 +49,84 @@ export default class TankGame extends Phaser.Scene {
 
           console.log(`Connected to room ID: ${this.roomId} as Player ${this.playerNumber}`);
 
-          this.levelMap = data.levelMap.map(line => [...line]); // Convert each string to char array
+          // Convert each string line of levelMap to array of chars for easy access
+          this.levelMap = data.levelMap.map(line => [...line]);
           this.renderLevel(this.levelMap);
 
-          const x = data.x * TILE_SIZE;
-          const y = data.y * TILE_SIZE;
+          // Positions from backend are in tile units, convert to pixels
+          const startX = data.x * TILE_SIZE;
+          const startY = data.y * TILE_SIZE;
 
-          // Spawn own tank
-          this.tank = this.spawnManager.spawnTank(x / TILE_SIZE, y / TILE_SIZE);
+          // Spawn own tank at start position
+          this.tank = this.spawnManager.spawnTank(startX / TILE_SIZE, startY / TILE_SIZE);
           this.asset = this.spawnManager.spawnAsset(24, 12, 'base');
-          this.tank.base = new TankBase(this.tank);
 
-          this.initializeGameplay(); // now levelMap is ready
+          // Create tank base and set position
+          this.tank.base = new TankBase(this.tank);
+          this.tank.base.updatePosition(startX, startY);
+
+          this.initializeGameplay();
           break;
 
         case 'spawn_other':
+          // Spawn or update the other player's tank only if it's not self
           if (this.playerNumber !== data.playerNumber) {
             if (!this.otherTank) {
               const ox = data.x * TILE_SIZE;
               const oy = data.y * TILE_SIZE;
               this.otherTank = this.spawnManager.spawnTank(ox / TILE_SIZE, oy / TILE_SIZE);
+              this.otherTank.base = new TankBase(this.otherTank);
+              this.otherTank.base.updatePosition(ox, oy);
             }
           }
           break;
 
+        case 'player_move':
         case 'move':
-          if (this.otherTank) {
-            this.otherTank.setPosition(data.x, data.y);
-            this.otherTank.setAngle(data.angle);
+          // Backend may send 'player_move' or 'move' for tank moves; handle both just in case
+          if (data.playerNumber === this.playerNumber) {
+            console.log('same data is ',data);
+            // Update own tank position only if backend confirms (to stay in sync)
+            if (this.tank) {
+              this.tank.setPosition(data.x, data.y);
+              this.tank.setAngle(data.direction ?? data.angle);
+              if (this.tank.base) {
+                this.tank.base.updatePosition(data.x, data.y);
+              }
+            }
+          } else {
+            // Update other player's tank
+            console.log('data is ',data);
+            
+            if (this.otherTank) {
+              this.otherTank.setPosition(data.x, data.y);
+              this.otherTank.setAngle(data.direction ?? data.angle);
+              if (this.otherTank.base) {
+                this.otherTank.base.updatePosition(data.x, data.y);
+              }
+            }
           }
           break;
 
         case 'fire_bullet':
+          if (this.bulletManager) {
+            this.bulletManager.createOrUpdateBullet(
+              data.bulletId,
+              data.x * TILE_SIZE,
+              data.y * TILE_SIZE,
+              data.angle ?? 0
+            );
+          }
+          break;
+
         case 'bullet_move':
           if (this.bulletManager) {
-            this.bulletManager.createOrUpdateBullet(data.bulletId, data.x, data.y);
+            this.bulletManager.createOrUpdateBullet(
+              data.bulletId,
+              data.x * TILE_SIZE,
+              data.y * TILE_SIZE,
+              data.angle ?? 0
+            );
           }
           break;
 
@@ -113,7 +156,6 @@ export default class TankGame extends Phaser.Scene {
   }
 
   create() {
-    // SpawnManager must be ready before WebSocket connect to spawn tanks
     this.spawnManager = new SpawnManager(this);
 
     new RoomPopup(this, (roomId) => {
@@ -134,7 +176,6 @@ export default class TankGame extends Phaser.Scene {
     this.bonusGroup = this.add.group();
 
     this.bonusManager = new BonusManager(this, this.levelMap, this.bonusGroup);
-    // Pass socket so bulletManager can send messages internally
     this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
     this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
 
@@ -164,7 +205,7 @@ export default class TankGame extends Phaser.Scene {
       }
     }
 
-    // Optional: Draw grid coordinates for debugging
+    // Optional: Draw grid coordinates
     for (let x = 0; x < levelMap[0].length; x++) {
       this.add.text(x * TILE_SIZE + 10, 0, x.toString(), {
         fontSize: '12px',
@@ -190,6 +231,11 @@ export default class TankGame extends Phaser.Scene {
 
     if (this.bonusManager) {
       this.bonusManager.checkBonusCollection(this.tank);
+    }
+
+    // Optional: Update base position continuously (if you want it 100% in sync)
+    if (this.tank.base) {
+      this.tank.base.updatePosition(this.tank.x, this.tank.y);
     }
   }
 }
