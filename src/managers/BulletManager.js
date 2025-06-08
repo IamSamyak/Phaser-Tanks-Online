@@ -34,8 +34,8 @@ export default class BulletManager {
       this.socket.send(JSON.stringify({
         type: 'fire_bullet',
         bulletId,
-        x: Math.floor(tank.x / TILE_SIZE),   // convert pixel x to tile x
-        y: Math.floor(tank.y / TILE_SIZE),   // convert pixel y to tile y
+        x: Math.floor(tank.x),   // convert pixel x to tile x
+        y: Math.floor(tank.y),   // convert pixel y to tile y
         angle
       }));
     }

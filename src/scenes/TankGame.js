@@ -85,7 +85,6 @@ export default class TankGame extends Phaser.Scene {
         case 'move':
           // Backend may send 'player_move' or 'move' for tank moves; handle both just in case
           if (data.playerNumber === this.playerNumber) {
-            console.log('same data is ',data);
             // Update own tank position only if backend confirms (to stay in sync)
             if (this.tank) {
               this.tank.setPosition(data.x, data.y);
@@ -94,10 +93,7 @@ export default class TankGame extends Phaser.Scene {
                 this.tank.base.updatePosition(data.x, data.y);
               }
             }
-          } else {
-            // Update other player's tank
-            console.log('data is ',data);
-            
+          } else {            
             if (this.otherTank) {
               this.otherTank.setPosition(data.x, data.y);
               this.otherTank.setAngle(data.direction ?? data.angle);
@@ -112,8 +108,8 @@ export default class TankGame extends Phaser.Scene {
           if (this.bulletManager) {
             this.bulletManager.createOrUpdateBullet(
               data.bulletId,
-              data.x * TILE_SIZE,
-              data.y * TILE_SIZE,
+              data.x,
+              data.y,
               data.angle ?? 0
             );
           }
@@ -121,10 +117,12 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_move':
           if (this.bulletManager) {
+            console.log('data is move ',data);
+            
             this.bulletManager.createOrUpdateBullet(
               data.bulletId,
-              data.x * TILE_SIZE,
-              data.y * TILE_SIZE,
+              data.x,
+              data.y,
               data.angle ?? 0
             );
           }
@@ -132,6 +130,7 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_destroy':
           if (this.bulletManager) {
+            console.log('data is destroy ',data);
             this.bulletManager.destroyBullet(data.bulletId);
           }
           break;
