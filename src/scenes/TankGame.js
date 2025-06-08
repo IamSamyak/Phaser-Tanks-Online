@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
 import { tileMapping, TILE_SIZE } from '../utils/tileMapping.js';
-import BonusManager from '../managers/BonusManager.js';
 import BulletManager from '../managers/BulletManager.js';
 import SpawnManager from '../managers/SpawnManager.js';
 import TankController from '../managers/TankController.js';
 import TankBase from '../managers/TankBase.js';
 import RoomPopup from '../ui/RoomPopup.js';
+import { bonusTypes } from '../utils/bonusTypes.js';
 
 export default class TankGame extends Phaser.Scene {
   constructor() {
@@ -26,6 +26,9 @@ export default class TankGame extends Phaser.Scene {
       frameWidth: 70,
       frameHeight: 65,
     });
+    bonusTypes.forEach(bonus => {
+    this.load.image(bonus.key, bonus.path);
+  });
   }
 
   connectWebSocket(roomId) {
@@ -132,11 +135,20 @@ export default class TankGame extends Phaser.Scene {
             this.bulletManager.destroyBullet(data.bulletId);
           }
           break;
+        case 'bonus_spawn': {
+          const { bonusId, x, y, bonusType } = data;
+          this.spawnManager.spawnBonus(bonusId, x, y, bonusType);
+          break;
+        }
+        case 'bonus_remove': {
+          const { bonusId } = data;
+          this.spawnManager.removeBonus(bonusId);
+          break;
+        }
 
         case 'explosion':
           if (this.bulletManager) {
-            console.log('data is destroy ', data);
-            this.spawnManager.spawnExplosion(data.x,data.y);
+            this.spawnManager.spawnExplosion(data.x, data.y);
           }
           break;
 
@@ -207,12 +219,8 @@ export default class TankGame extends Phaser.Scene {
     this.tankSpeed = 100;
     this.bulletSpeed = 100;
     this.bonusGroup = this.add.group();
-
-    this.bonusManager = new BonusManager(this, this.levelMap, this.bonusGroup);
     this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
     this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
-
-    this.bonusManager.scheduleBonus();
   }
 
   renderLevel(levelMap) {
@@ -261,10 +269,6 @@ export default class TankGame extends Phaser.Scene {
     if (!this.tank || !this.tankController) return;
 
     this.tankController.update(time);
-
-    if (this.bonusManager) {
-      this.bonusManager.checkBonusCollection(this.tank);
-    }
 
     // Optional: Update base position continuously (if you want it 100% in sync)
     if (this.tank.base) {
