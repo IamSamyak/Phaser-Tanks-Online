@@ -93,7 +93,7 @@ export default class TankGame extends Phaser.Scene {
                 this.tank.base.updatePosition(data.x, data.y);
               }
             }
-          } else {            
+          } else {
             if (this.otherTank) {
               this.otherTank.setPosition(data.x, data.y);
               this.otherTank.setAngle(data.direction ?? data.angle);
@@ -117,8 +117,6 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_move':
           if (this.bulletManager) {
-            console.log('data is move ',data);
-            
             this.bulletManager.createOrUpdateBullet(
               data.bulletId,
               data.x,
@@ -130,8 +128,44 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_destroy':
           if (this.bulletManager) {
-            console.log('data is destroy ',data);
+            console.log('data is destroy ', data);
             this.bulletManager.destroyBullet(data.bulletId);
+          }
+          break;
+
+        case 'explosion':
+          if (this.bulletManager) {
+            console.log('data is destroy ', data);
+            this.spawnManager.spawnExplosion(data.x,data.y);
+          }
+          break;
+
+        case 'tile_update':
+          console.log('tile_update received:', data);
+          if (this.levelMap && this.tileSprites) {
+            const tx = data.x;
+            const ty = data.y;
+            const tileChar = data.tile;
+
+            // Update levelMap (internal 2D char array)
+            this.levelMap[ty][tx] = tileChar;
+
+            // Remove old tile sprite if exists
+            const oldTile = this.tileSprites[ty][tx];
+            if (oldTile) {
+              oldTile.destroy();
+            }
+
+            // Update tileSprites array
+            const tileName = tileMapping[tileChar];
+            if (tileName && tileName !== 'empty') {
+              const tile = this.add.image(tx * TILE_SIZE, ty * TILE_SIZE, tileName);
+              tile.setOrigin(0, 0);
+              tile.setScale(TILE_SIZE / 16);
+              this.tileSprites[ty][tx] = tile;
+            } else {
+              this.tileSprites[ty][tx] = null;
+            }
           }
           break;
 
