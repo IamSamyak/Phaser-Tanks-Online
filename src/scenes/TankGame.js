@@ -27,8 +27,8 @@ export default class TankGame extends Phaser.Scene {
       frameHeight: 65,
     });
     bonusTypes.forEach(bonus => {
-    this.load.image(bonus.key, bonus.path);
-  });
+      this.load.image(bonus.key, bonus.path);
+    });
   }
 
   connectWebSocket(roomId) {
@@ -62,7 +62,7 @@ export default class TankGame extends Phaser.Scene {
 
           // Spawn own tank at start position
           this.tank = this.spawnManager.spawnTank(startX / TILE_SIZE, startY / TILE_SIZE);
-          this.asset = this.spawnManager.spawnAsset(24, 12, 'base');
+          this.asset = this.spawnManager.spawnAsset(12, 24, 'base');
 
           // Create tank base and set position
           this.tank.base = new TankBase(this.tank);
@@ -83,6 +83,31 @@ export default class TankGame extends Phaser.Scene {
             }
           }
           break;
+
+        case 'enemy_spawn': {
+          const { enemyId, x, y, angle } = data;
+
+          if (this.enemies.has(enemyId)) return;
+
+          // Reuse existing spawnTank method (takes tile coords, so divide)
+          const enemyTank = this.spawnManager.spawnTank(x / TILE_SIZE, y / TILE_SIZE);
+          enemyTank.setAngle(angle);
+          enemyTank.setDepth(1); // Optional: ensure enemies render behind player
+
+          this.enemies.set(enemyId, enemyTank);
+          break;
+        }
+
+        case 'enemy_destroyed': {
+          const { enemyId } = data;
+          const enemy = this.enemies.get(enemyId);
+          if (enemy) {
+            this.spawnCollisionEffect(enemy.x, enemy.y);
+            enemy.destroy();
+            this.enemies.delete(enemyId);
+          }
+          break;
+        }
 
         case 'player_move':
         case 'move':
@@ -106,6 +131,25 @@ export default class TankGame extends Phaser.Scene {
             }
           }
           break;
+
+        case 'enemy_move_batch': {
+          const { enemies: enemyUpdates } = data;
+          console.log('Received enemies through socket message:', enemyUpdates);
+          
+          enemyUpdates.forEach(({ enemyId, x, y, angle }) => {
+            const enemy = this.enemies.get(enemyId);
+            if (enemy) {
+              enemy.setPosition(x, y);
+              enemy.setAngle(angle);
+              // Optional: maintain depth or other metadata
+              if (enemy.base) {
+                enemy.base.updatePosition(x, y);
+              }
+            }
+          });
+
+          break;
+        }
 
         case 'fire_bullet':
           if (this.bulletManager) {
@@ -131,7 +175,6 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_destroy':
           if (this.bulletManager) {
-            console.log('data is destroy ', data);
             this.bulletManager.destroyBullet(data.bulletId);
           }
           break;
@@ -219,6 +262,7 @@ export default class TankGame extends Phaser.Scene {
     this.tankSpeed = 100;
     this.bulletSpeed = 100;
     this.bonusGroup = this.add.group();
+    this.enemies = new Map();
     this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
     this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
   }

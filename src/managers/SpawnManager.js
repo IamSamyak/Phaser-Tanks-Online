@@ -8,8 +8,8 @@ export default class SpawnManager {
   }
 
   spawnTank(row, col) {
-    const centerX = (col + 1) * TILE_SIZE;
-    const centerY = (row + 1) * TILE_SIZE;
+    const centerX = (row + 1) * TILE_SIZE;
+    const centerY = (col + 1) * TILE_SIZE;
 
     const tank = this.scene.add.image(centerX, centerY, 'tank');
     tank.setOrigin(0.5, 0.5);
@@ -20,8 +20,8 @@ export default class SpawnManager {
   }
 
   spawnAsset(row, col, assetKey) {
-    const centerX = (col + 1) * TILE_SIZE;
-    const centerY = (row + 1) * TILE_SIZE;
+    const centerX = (row + 1) * TILE_SIZE;
+    const centerY = (col + 1) * TILE_SIZE;
 
     const asset = this.scene.add.image(centerX, centerY, assetKey);
     asset.setOrigin(0.5, 0.5);
