@@ -7,9 +7,9 @@ export default class SpawnManager {
     this.bonuses = new Map();
   }
 
-  spawnTank(row, col) {
-    const centerX = (row + 1) * TILE_SIZE;
-    const centerY = (col + 1) * TILE_SIZE;
+  spawnTank(x, y) {
+    const centerX = (x + 1) * TILE_SIZE;
+    const centerY = (y + 1) * TILE_SIZE;
 
     const tank = this.scene.add.image(centerX, centerY, 'tank');
     tank.setOrigin(0.5, 0.5);
@@ -19,9 +19,9 @@ export default class SpawnManager {
     return tank;
   }
 
-  spawnAsset(row, col, assetKey) {
-    const centerX = (row + 1) * TILE_SIZE;
-    const centerY = (col + 1) * TILE_SIZE;
+  spawnAsset(x, y, assetKey) {
+    const centerX = (x + 1) * TILE_SIZE;
+    const centerY = (y + 1) * TILE_SIZE;
 
     const asset = this.scene.add.image(centerX, centerY, assetKey);
     asset.setOrigin(0.5, 0.5);

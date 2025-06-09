@@ -135,7 +135,7 @@ export default class TankGame extends Phaser.Scene {
         case 'enemy_move_batch': {
           const { enemies: enemyUpdates } = data;
           console.log('Received enemies through socket message:', enemyUpdates);
-          
+
           enemyUpdates.forEach(({ enemyId, x, y, angle }) => {
             const enemy = this.enemies.get(enemyId);
             if (enemy) {
@@ -151,18 +151,65 @@ export default class TankGame extends Phaser.Scene {
           break;
         }
 
-        case 'fire_bullet':
+        case 'bullet_move_batch': {
+          const { bullets } = data;
           if (this.bulletManager) {
-            this.bulletManager.createOrUpdateBullet(
-              data.bulletId,
-              data.x,
-              data.y,
-              data.angle ?? 0
-            );
+            bullets.forEach(({ bulletId, x, y }) => {
+              this.bulletManager.createOrUpdateBullet(bulletId, x, y);
+            });
           }
           break;
+        }
 
-        case 'bullet_move':
+        case 'bullet_destroy_batch': {
+          const { bulletIds } = data;
+          if (this.bulletManager) {
+            bulletIds.forEach((bulletId) => {
+              this.bulletManager.destroyBullet(bulletId);
+            });
+          }
+          break;
+        }
+
+        case 'tile_update_batch': {
+          const { tiles } = data;
+          tiles.forEach(({ x: tx, y: ty, tile: tileChar }) => {
+            if (this.levelMap && this.tileSprites) {
+              // Update levelMap (internal 2D char array)
+              this.levelMap[ty][tx] = tileChar;
+
+              // Remove old tile sprite if exists
+              const oldTile = this.tileSprites[ty][tx];
+              if (oldTile) {
+                oldTile.destroy();
+              }
+
+              // Update tileSprites array
+              const tileName = tileMapping[tileChar];
+              if (tileName && tileName !== 'empty') {
+                const tile = this.add.image(tx * TILE_SIZE, ty * TILE_SIZE, tileName);
+                tile.setOrigin(0, 0);
+                tile.setScale(TILE_SIZE / 16);
+                this.tileSprites[ty][tx] = tile;
+              } else {
+                this.tileSprites[ty][tx] = null;
+              }
+            }
+          });
+          break;
+        }
+
+        case 'explosion_batch': {
+          const { explosions } = data;
+          explosions.forEach(({ x, y }) => {
+            if (this.bulletManager) {
+              this.spawnManager.spawnExplosion(x, y);
+            }
+          });
+          break;
+        }
+
+        case 'fire_bullet':
           if (this.bulletManager) {
             this.bulletManager.createOrUpdateBullet(
               data.bulletId,
