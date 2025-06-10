@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Direction } from '../utils/directionHelper';
 
 export default class TankController {
   constructor(scene, tank, bulletManager) {
@@ -22,26 +23,27 @@ export default class TankController {
     if (!this.tank) return;
 
     if (!this.lastMoveTime || time - this.lastMoveTime > this.moveInterval) {
-      let newAngle = null;
+      let newDirection = null;
       let newX = this.tank.x;
       let newY = this.tank.y;
 
       if (this.cursors.up.isDown) {
-        newAngle = 0;
+        newDirection = Direction.UP;
         newY -= 32;
       } else if (this.cursors.down.isDown) {
-        newAngle = 180;
+        newDirection = Direction.DOWN;
         newY += 32;
       } else if (this.cursors.left.isDown) {
-        newAngle = 270;
+        newDirection = Direction.LEFT;
         newX -= 32;
       } else if (this.cursors.right.isDown) {
-        newAngle = 90;
+        newDirection = Direction.RIGHT;
         newX += 32;
       }
 
-      if (newAngle !== null) {
+      if (newDirection !== null) {
         this.lastMoveTime = time;
+        console.log('direction is ',newDirection);
         
         if (this.scene.socket && this.scene.socket.readyState === WebSocket.OPEN) {
           this.scene.socket.send(
@@ -49,7 +51,7 @@ export default class TankController {
               type: 'player_move',
               x: newX,
               y: newY,
-              direction: newAngle,
+              direction: newDirection,
             })
           );
         }

@@ -6,6 +6,7 @@ import TankController from '../managers/TankController.js';
 import TankBase from '../managers/TankBase.js';
 import RoomPopup from '../ui/RoomPopup.js';
 import { bonusTypes } from '../utils/bonusTypes.js';
+import { Direction, getAngleFromDirection } from '../utils/directionHelper.js';
 
 export default class TankGame extends Phaser.Scene {
   constructor() {
@@ -61,8 +62,8 @@ export default class TankGame extends Phaser.Scene {
           const startY = data.y * TILE_SIZE;
 
           // Spawn own tank at start position
-          this.tank = this.spawnManager.spawnTank(startX / TILE_SIZE, startY / TILE_SIZE);
-          this.asset = this.spawnManager.spawnAsset(12, 24, 'base');
+          this.tank = this.spawnManager.spawnTank(startX / TILE_SIZE, startY / TILE_SIZE, data.direction);
+          this.asset = this.spawnManager.spawnAsset(13, 25, 'base', Direction.UP);
 
           // Create tank base and set position
           this.tank.base = new TankBase(this.tank);
@@ -77,7 +78,7 @@ export default class TankGame extends Phaser.Scene {
             if (!this.otherTank) {
               const ox = data.x * TILE_SIZE;
               const oy = data.y * TILE_SIZE;
-              this.otherTank = this.spawnManager.spawnTank(ox / TILE_SIZE, oy / TILE_SIZE);
+              this.otherTank = this.spawnManager.spawnTank(ox / TILE_SIZE, oy / TILE_SIZE, data.direction);
               this.otherTank.base = new TankBase(this.otherTank);
               this.otherTank.base.updatePosition(ox, oy);
             }
@@ -85,13 +86,14 @@ export default class TankGame extends Phaser.Scene {
           break;
 
         case 'enemy_spawn': {
-          const { enemyId, x, y, angle } = data;
+          const { enemyId, x, y, direction } = data;
+          console.log('enemy_spawn', data);
+          
 
           if (this.enemies.has(enemyId)) return;
 
           // Reuse existing spawnTank method (takes tile coords, so divide)
-          const enemyTank = this.spawnManager.spawnTank(x / TILE_SIZE, y / TILE_SIZE);
-          enemyTank.setAngle(angle);
+          const enemyTank = this.spawnManager.spawnTank(x / TILE_SIZE, y / TILE_SIZE, direction);
           enemyTank.setDepth(1); // Optional: ensure enemies render behind player
 
           this.enemies.set(enemyId, enemyTank);
@@ -116,15 +118,16 @@ export default class TankGame extends Phaser.Scene {
             // Update own tank position only if backend confirms (to stay in sync)
             if (this.tank) {
               this.tank.setPosition(data.x, data.y);
-              this.tank.setAngle(data.direction ?? data.angle);
+              this.tank.setAngle(getAngleFromDirection(data.direction));
               if (this.tank.base) {
                 this.tank.base.updatePosition(data.x, data.y);
               }
             }
           } else {
             if (this.otherTank) {
+              // debugger
               this.otherTank.setPosition(data.x, data.y);
-              this.otherTank.setAngle(data.direction ?? data.angle);
+              this.otherTank.setAngle(getAngleFromDirection(data.direction));
               if (this.otherTank.base) {
                 this.otherTank.base.updatePosition(data.x, data.y);
               }
@@ -134,11 +137,12 @@ export default class TankGame extends Phaser.Scene {
 
         case 'enemy_move_batch': {
           const { enemies: enemyUpdates } = data;
-          enemyUpdates.forEach(({ enemyId, x, y, angle }) => {
+           console.log('enemy_move_batch', data);
+          enemyUpdates.forEach(({ enemyId, x, y, direction }) => {
             const enemy = this.enemies.get(enemyId);
             if (enemy) {
               enemy.setPosition(x, y);
-              enemy.setAngle(angle);
+              enemy.setAngle(getAngleFromDirection(direction));
               // Optional: maintain depth or other metadata
               if (enemy.base) {
                 enemy.base.updatePosition(x, y);
@@ -151,11 +155,10 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_move_batch': {
           const { bullets } = data;
-          console.log('bullets is ',bullets);
           
           if (this.bulletManager) {
-            bullets.forEach(({ bulletId, x, y, angle }) => {
-              this.bulletManager.createOrUpdateBullet(bulletId, x, y,angle);
+            bullets.forEach(({ bulletId, x, y, direction }) => {
+              this.bulletManager.createOrUpdateBullet(bulletId, x, y,direction);
             });
           }
           break;
@@ -215,7 +218,7 @@ export default class TankGame extends Phaser.Scene {
               data.bulletId,
               data.x,
               data.y,
-              data.angle ?? 0
+              data.direction ?? 0
             );
           }
           break;

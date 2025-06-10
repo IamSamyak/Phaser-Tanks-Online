@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TILE_SIZE } from '../utils/tileMapping.js';
+import { getAngleFromDirection, getDirectionFromAngle } from '../utils/directionHelper.js';
 
 export default class BulletManager {
   constructor(scene, levelMap, tankGameScene, socket) {
@@ -27,7 +28,7 @@ export default class BulletManager {
 
     this.activeBullets.set(bulletId, bullet);
     tank.base.activeBullets++;
-    console.log('tanks is ', tank.x, tank.y,angle);
+    console.log('tanks is ', angle, "type of ",typeof angle);
 
     // Send fire bullet event to backend
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -36,29 +37,30 @@ export default class BulletManager {
         bulletId,
         x: Math.floor(tank.x),   // convert pixel x to tile x
         y: Math.floor(tank.y),   // convert pixel y to tile y
-        angle
+        direction: getDirectionFromAngle(Math.round(angle))
       }));
     }
 
     return bulletId;
   }
 
-  createOrUpdateBullet(bulletId, x, y, angle) {
+  createOrUpdateBullet(bulletId, x, y, direction) {
     let bullet = this.activeBullets.get(bulletId);
-      console.log('amngle is ',angle);
-      
+    
     if (!bullet) {
+      console.log('bullet is ',getAngleFromDirection(direction));
       // Create bullet sprite if it doesn't exist
       bullet = this.scene.add.image(x, y, 'bullet');
       bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
       bullet.setOrigin(0.5);
-      bullet.setAngle(angle);
+      bullet.setAngle(getAngleFromDirection(direction));
       bullet.bulletId = bulletId;
       this.activeBullets.set(bulletId, bullet);
     } else {
       // Update position if it exists
       bullet.x = x;
       bullet.y = y;
+      bullet.setAngle(getAngleFromDirection(direction));
     }
   }
 
