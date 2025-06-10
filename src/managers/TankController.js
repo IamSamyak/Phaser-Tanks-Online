@@ -42,7 +42,7 @@ export default class TankController {
 
       if (newAngle !== null) {
         this.lastMoveTime = time;
-
+        
         if (this.scene.socket && this.scene.socket.readyState === WebSocket.OPEN) {
           this.scene.socket.send(
             JSON.stringify({

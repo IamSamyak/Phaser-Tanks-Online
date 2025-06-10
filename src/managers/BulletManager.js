@@ -27,7 +27,7 @@ export default class BulletManager {
 
     this.activeBullets.set(bulletId, bullet);
     tank.base.activeBullets++;
-    console.log('tanks is ', tank.x, tank.y);
+    console.log('tanks is ', tank.x, tank.y,angle);
 
     // Send fire bullet event to backend
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -43,14 +43,16 @@ export default class BulletManager {
     return bulletId;
   }
 
-  createOrUpdateBullet(bulletId, x, y) {
+  createOrUpdateBullet(bulletId, x, y, angle) {
     let bullet = this.activeBullets.get(bulletId);
-
+      console.log('amngle is ',angle);
+      
     if (!bullet) {
       // Create bullet sprite if it doesn't exist
       bullet = this.scene.add.image(x, y, 'bullet');
       bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
       bullet.setOrigin(0.5);
+      bullet.setAngle(angle);
       bullet.bulletId = bulletId;
       this.activeBullets.set(bulletId, bullet);
     } else {

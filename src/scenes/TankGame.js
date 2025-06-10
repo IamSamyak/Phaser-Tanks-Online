@@ -134,8 +134,6 @@ export default class TankGame extends Phaser.Scene {
 
         case 'enemy_move_batch': {
           const { enemies: enemyUpdates } = data;
-          console.log('Received enemies through socket message:', enemyUpdates);
-
           enemyUpdates.forEach(({ enemyId, x, y, angle }) => {
             const enemy = this.enemies.get(enemyId);
             if (enemy) {
@@ -153,9 +151,11 @@ export default class TankGame extends Phaser.Scene {
 
         case 'bullet_move_batch': {
           const { bullets } = data;
+          console.log('bullets is ',bullets);
+          
           if (this.bulletManager) {
-            bullets.forEach(({ bulletId, x, y }) => {
-              this.bulletManager.createOrUpdateBullet(bulletId, x, y);
+            bullets.forEach(({ bulletId, x, y, angle }) => {
+              this.bulletManager.createOrUpdateBullet(bulletId, x, y,angle);
             });
           }
           break;
@@ -220,6 +220,43 @@ export default class TankGame extends Phaser.Scene {
           }
           break;
 
+        case 'player_destroyed': {
+          const { playerNumber } = data;
+
+          // If it's your own tank
+          if (playerNumber === this.playerNumber) {
+            if (this.tank) {
+              // this.spawnCollisionEffect(this.tank.x, this.tank.y);
+              this.tank.destroy();
+              if (this.tank.base) {
+                this.tank.base.destroy();
+              }
+              this.tank = null;
+            }
+          } else if (this.otherTank && playerNumber !== this.playerNumber) {
+            // this.spawnCollisionEffect(this.otherTank.x, this.otherTank.y);
+            this.otherTank.destroy();
+            if (this.otherTank.base) {
+              this.otherTank.base.destroy();
+            }
+            this.otherTank = null;
+          }
+
+          break;
+        }
+
+
+        case 'enemy_destroyed': {
+          const { enemyId } = data;
+          const enemy = this.enemies.get(enemyId);
+          if (enemy) {
+            // this.spawnCollisionEffect(enemy.x, enemy.y);
+            enemy.destroy();
+            this.enemies.delete(enemyId);
+          }
+          break;
+        }
+
         case 'bullet_destroy':
           if (this.bulletManager) {
             this.bulletManager.destroyBullet(data.bulletId);
@@ -243,7 +280,6 @@ export default class TankGame extends Phaser.Scene {
           break;
 
         case 'tile_update':
-          console.log('tile_update received:', data);
           if (this.levelMap && this.tileSprites) {
             const tx = data.x;
             const ty = data.y;
