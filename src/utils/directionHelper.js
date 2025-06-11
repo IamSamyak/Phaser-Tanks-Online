@@ -36,3 +36,19 @@ export function getDirectionFromAngle(angle) {
   }
 }
 
+export function getDeltaFromDirection(direction) {
+  switch (direction) {
+    case Direction.UP:
+      return { dx: 0, dy: -32 };
+    case Direction.DOWN:
+      return { dx: 0, dy: 32 };
+    case Direction.LEFT:
+      return { dx: -32, dy: 0 };
+    case Direction.RIGHT:
+      return { dx: 32, dy: 0 };
+    default:
+      throw new Error(`Unknown direction: ${direction}`);
+  }
+}
+
+

@@ -10,46 +10,28 @@ export default class BulletManager {
     this.socket = socket;
 
     this.activeBullets = new Map(); // bulletId -> bullet sprite
-    this.nextBulletId = 1;
   }
 
   fireBullet(tank) {
-    if (!tank || !tank.base) return null;
-    if (tank.base.activeBullets >= tank.base.maxBullets) return null;
+    if (!tank) return;
 
-    const bulletId = 'b' + (this.nextBulletId++);
     const angle = Phaser.Math.Snap.To(Phaser.Math.Wrap(tank.angle, 0, 360), 90);
-
-    // Create bullet sprite locally at tank position
-    const bullet = this.scene.add.image(tank.x, tank.y, 'bullet');
-    bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
-    bullet.setOrigin(0.5);
-    bullet.bulletId = bulletId;
-
-    this.activeBullets.set(bulletId, bullet);
-    tank.base.activeBullets++;
-    console.log('tanks is ', angle, "type of ",typeof angle);
-
-    // Send fire bullet event to backend
+    console.log('tank is ',tank.x / TILE_SIZE,tank.y / TILE_SIZE,angle);
+    
+    // Send request to backend to fire bullet (backend assigns bulletId)
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({
         type: 'fire_bullet',
-        bulletId,
-        x: Math.floor(tank.x),   // convert pixel x to tile x
-        y: Math.floor(tank.y),   // convert pixel y to tile y
-        direction: getDirectionFromAngle(Math.round(angle))
       }));
     }
-
-    return bulletId;
   }
 
   createOrUpdateBullet(bulletId, x, y, direction) {
     let bullet = this.activeBullets.get(bulletId);
-    
+    x *= TILE_SIZE;
+    y *= TILE_SIZE;
+
     if (!bullet) {
-      console.log('bullet is ',getAngleFromDirection(direction));
-      // Create bullet sprite if it doesn't exist
       bullet = this.scene.add.image(x, y, 'bullet');
       bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
       bullet.setOrigin(0.5);
@@ -57,22 +39,17 @@ export default class BulletManager {
       bullet.bulletId = bulletId;
       this.activeBullets.set(bulletId, bullet);
     } else {
-      // Update position if it exists
       bullet.x = x;
       bullet.y = y;
       bullet.setAngle(getAngleFromDirection(direction));
     }
   }
 
-  destroyBullet(bulletId, tankBase = null) {
+  destroyBullet(bulletId) {
     const bullet = this.activeBullets.get(bulletId);
     if (!bullet) return;
 
     bullet.destroy();
     this.activeBullets.delete(bulletId);
-
-    if (tankBase) {
-      tankBase.activeBullets = Math.max(0, tankBase.activeBullets - 1);
-    }
   }
 }

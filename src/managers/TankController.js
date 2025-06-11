@@ -24,21 +24,15 @@ export default class TankController {
 
     if (!this.lastMoveTime || time - this.lastMoveTime > this.moveInterval) {
       let newDirection = null;
-      let newX = this.tank.x;
-      let newY = this.tank.y;
 
       if (this.cursors.up.isDown) {
         newDirection = Direction.UP;
-        newY -= 32;
       } else if (this.cursors.down.isDown) {
         newDirection = Direction.DOWN;
-        newY += 32;
       } else if (this.cursors.left.isDown) {
         newDirection = Direction.LEFT;
-        newX -= 32;
       } else if (this.cursors.right.isDown) {
         newDirection = Direction.RIGHT;
-        newX += 32;
       }
 
       if (newDirection !== null) {
@@ -49,8 +43,6 @@ export default class TankController {
           this.scene.socket.send(
             JSON.stringify({
               type: 'player_move',
-              x: newX,
-              y: newY,
               direction: newDirection,
             })
           );
@@ -60,7 +52,6 @@ export default class TankController {
 
     if (Phaser.Input.Keyboard.JustDown(this.cursors.fire)) {
       this.bulletManager.fireBullet(this.tank);
-      // Assume fireBullet handles socket messaging for firing
     }
   }
 }

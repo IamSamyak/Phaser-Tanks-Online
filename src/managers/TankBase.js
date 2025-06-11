@@ -1,3 +1,5 @@
+import { TILE_SIZE } from "../utils/tileMapping";
+
 export default class TankBase {
   constructor(sprite) {
     this.sprite = sprite;
@@ -13,13 +15,15 @@ export default class TankBase {
     this.y = sprite.y;
   }
 
-  updatePosition(x, y) {
-    this.x = x;
-    this.y = y;
-    if (this.sprite) {
-      this.sprite.setPosition(x, y);
-    }
-  }
+  // updatePosition(x, y) {
+  //   x *= TILE_SIZE;
+  //   y *= TILE_SIZE;
+  //   this.x = x;
+  //   this.y = y;
+  //   if (this.sprite) {
+  //     this.sprite.setPosition(x, y);
+  //   }
+  // }
 
   getPosition() {
     return { x: this.x, y: this.y };
