@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { Direction } from '../utils/directionHelper';
 
+function vibrate(duration = 50) {
+  if (navigator.vibrate) {
+    navigator.vibrate(duration);
+  }
+}
+
 export default class TankController {
   constructor(scene, tank, bulletManager) {
     this.scene = scene;
@@ -18,60 +24,6 @@ export default class TankController {
     this.lastMoveTime = 0;
     this.moveInterval = 200; // debounce movement input
   }
-
-
-// handleJoystickInput(forceX, forceY) {
-//   if (Math.abs(forceX) < 0.5 && Math.abs(forceY) < 0.5) {
-//     return; // ignore weak input
-//   }
-
-//   console.log('Joystick being used:', { forceX, forceY });
-
-//   let newX = this.tank.x;
-//   let newY = this.tank.y;
-//   let newDirection = this.tank.direction;
-
-//   if (Math.abs(forceX) > Math.abs(forceY)) {
-//     if (forceX > 0.5) {
-//       newDirection = Direction.RIGHT;
-//       newX +=32;
-//     } else if (forceX < -0.5) {
-//       newDirection = Direction.LEFT;
-//       newX -= 32;
-//     }
-//   } else {
-//     if (forceY > 0.5) {
-//       newDirection = Direction.DOWN;
-//       newY += 32;
-//     } else if (forceY < -0.5) {
-//       newDirection = Direction.UP;
-//       newY -= 32;
-//     }
-//   }
-  
-
-//   this.scene.socket.send(
-//     JSON.stringify({
-//       type: 'player_move',
-//       x: newX,
-//       y: newY,
-//       direction: newDirection,
-//     })
-//   );
-// }
-
-// sendMovementToServer(x, y, direction) {
-//   if (this.scene.socket && this.scene.socket.readyState === WebSocket.OPEN) {
-//     this.scene.socket.send(
-//       JSON.stringify({
-//         type: 'player_move',
-//         x,
-//         y,
-//         direction,
-//       })
-//     );
-//   }
-// }
 
 handleJoystickInput(forceX, forceY, time) {
   if (Math.abs(forceX) > 0.5 || Math.abs(forceY) > 0.5) {

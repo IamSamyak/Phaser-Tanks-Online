@@ -39,14 +39,10 @@ export default class TankGame extends Phaser.Scene {
   }
 
   connectWebSocket(roomId) {
-    // const wsUrl = roomId
-    //   ? `ws://localhost:8080/ws/join/${roomId}`
-    //   : `ws://localhost:8080/ws/create`;
-
-    
     const wsUrl = roomId
-      ? `ws://192.168.1.23:8080/ws/join/${roomId}`
-      : `ws://192.168.1.23:8080/ws/create`;
+      ? `ws://localhost:8080/ws/join/${roomId}`
+      : `ws://localhost:8080/ws/create`;
+
     this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = () => {
@@ -383,6 +379,8 @@ export default class TankGame extends Phaser.Scene {
     }).setScrollFactor(0);
 
     this.fireButton.on('pointerdown', () => {
+      vibrate(60); // Haptic feedback for firing
+
       if (this.tankController) {
         this.tankController.bulletManager.fireBullet(this.tank);
       }
