@@ -8,6 +8,12 @@ import RoomPopup from '../ui/RoomPopup.js';
 import { bonusTypes } from '../utils/bonusTypes.js';
 import { Direction, getAngleFromDirection } from '../utils/directionHelper.js';
 
+function vibrate(duration = 50) {
+  if (navigator.vibrate) {
+    navigator.vibrate(duration);
+  }
+}
+
 export default class TankGame extends Phaser.Scene {
   constructor() {
     super({ key: 'TankGame' });
@@ -33,10 +39,14 @@ export default class TankGame extends Phaser.Scene {
   }
 
   connectWebSocket(roomId) {
-    const wsUrl = roomId
-      ? `ws://localhost:8080/ws/join/${roomId}`
-      : `ws://localhost:8080/ws/create`;
+    // const wsUrl = roomId
+    //   ? `ws://localhost:8080/ws/join/${roomId}`
+    //   : `ws://localhost:8080/ws/create`;
 
+    
+    const wsUrl = roomId
+      ? `ws://192.168.1.23:8080/ws/join/${roomId}`
+      : `ws://192.168.1.23:8080/ws/create`;
     this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = () => {
@@ -97,6 +107,8 @@ export default class TankGame extends Phaser.Scene {
           enemyTank.setDepth(1); // Optional: ensure enemies render behind player
 
           this.enemies.set(enemyId, enemyTank);
+
+          enemyTank.setTint(0xff4444); // red tint for enemies
           break;
         }
 
@@ -342,6 +354,43 @@ export default class TankGame extends Phaser.Scene {
       frameRate: 1,
       hideOnComplete: true,
     });
+    
+  }
+
+  createJoystick() {
+    this.joystick = this.plugins.get('rexVirtualJoystick').add(this, {
+      x: 100,
+      y: 700,
+      radius: 60,
+      base: this.add.circle(0, 0, 60, 0x888888),
+      thumb: this.add.circle(0, 0, 30, 0xcccccc),
+      dir: '8dir',
+      forceMin: 10,
+      enable: true
+
+    });
+  }
+
+  //FireButton
+  createFireButton() {
+    this.fireButton = this.add.circle(700, 700, 40, 0xff4444).setInteractive();
+    this.fireButton.setScrollFactor(0);
+
+    this.fireText = this.add.text(682, 690, 'FIRE', {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setScrollFactor(0);
+
+    this.fireButton.on('pointerdown', () => {
+      if (this.tankController) {
+        this.tankController.bulletManager.fireBullet(this.tank);
+      }
+    });
+
+    // Optional: hold to keep firing (like autofire)
+    // this.fireButton.on('pointerover', () => this.holdingFire = true);
+    // this.fireButton.on('pointerout', () => this.holdingFire = false);
   }
 
   initializeGameplay() {
@@ -351,7 +400,14 @@ export default class TankGame extends Phaser.Scene {
     this.enemies = new Map();
     this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
     this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
+    
+    //Joystick and fire control to be played on smartphone
+    this.createJoystick();
+    this.createFireButton();
+    
   }
+
+  
 
   renderLevel(levelMap) {
     this.tileSprites = [];
@@ -395,14 +451,22 @@ export default class TankGame extends Phaser.Scene {
     this.spawnManager.spawnExplosion(x, y);
   }
 
+ 
   update(time) {
-    if (!this.tank || !this.tankController) return;
+  if (!this.tank || !this.tankController) return;
 
-    this.tankController.update(time);
-
-    // Optional: Update base position continuously (if you want it 100% in sync)
-    if (this.tank.base) {
-      this.tank.base.updatePosition(this.tank.x, this.tank.y);
+  if (this.joystick) {
+    const { forceX, forceY } = this.joystick;
+    if (typeof forceX === 'number' && typeof forceY === 'number') {
+      this.tankController.handleJoystickInput(forceX, forceY, time);
     }
   }
+
+  this.tankController.update(time);
+
+  if (this.tank.base) {
+    this.tank.base.updatePosition(this.tank.x, this.tank.y);
+  }
+}
+
 }
