@@ -1,14 +1,19 @@
-// main.js
 import Phaser from 'phaser';
 import TankGame from './scenes/TankGame.js';
 
+const squareSize = Math.min(window.innerWidth, window.innerHeight);
+
 const config = {
   type: Phaser.AUTO,
-  width: 832,
-  height: 832,
-  backgroundColor: '#222222',
   parent: 'game-container',
+  width: squareSize,
+  height: squareSize,
+  backgroundColor: '#000',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   scene: [TankGame],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);

@@ -1,4 +1,3 @@
-import { TILE_SIZE } from '../utils/tileMapping.js';
 import { bonusTypes } from '../utils/bonusTypes.js';
 import { getAngleFromDirection } from '../utils/directionHelper.js';
 
@@ -9,23 +8,26 @@ export default class SpawnManager {
   }
 
   toPixelCoords(x, y) {
-    return [x * TILE_SIZE, y * TILE_SIZE];
+    const size = this.scene.dynamicTileSize;
+    return [x * size, y * size];
   }
 
   spawnTank(x, y, direction) {
     const [centerX, centerY] = this.toPixelCoords(x, y);
+    const size = this.scene.dynamicTileSize;
     const tank = this.scene.add.image(centerX, centerY, 'tank');
     tank.setOrigin(0.5, 0.5);
-    tank.setDisplaySize(TILE_SIZE * 2, TILE_SIZE * 2);
+    tank.setDisplaySize(size * 2, size * 2);
     tank.angle = getAngleFromDirection(direction);
     return tank;
   }
 
   spawnAsset(x, y, assetKey, direction) {
     const [centerX, centerY] = this.toPixelCoords(x, y);
+    const size = this.scene.dynamicTileSize;
     const asset = this.scene.add.image(centerX, centerY, assetKey);
     asset.setOrigin(0.5, 0.5);
-    asset.setDisplaySize(TILE_SIZE * 2, TILE_SIZE * 2);
+    asset.setDisplaySize(size * 2, size * 2);
     asset.angle = getAngleFromDirection(direction);
     return asset;
   }
@@ -48,9 +50,10 @@ export default class SpawnManager {
     }
 
     const [px, py] = this.toPixelCoords(x, y);
+    const size = this.scene.dynamicTileSize;
     const bonus = this.scene.add.image(px, py, bonusTypeObj.key);
     bonus.setOrigin(0.5);
-    bonus.setDisplaySize(TILE_SIZE, TILE_SIZE);
+    bonus.setDisplaySize(size, size);
     bonus.bonusId = bonusId;
     bonus.bonusEffect = bonusEffect;
 

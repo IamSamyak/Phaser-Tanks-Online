@@ -1,4 +1,3 @@
-// src/ui/RoomPopup.js
 export default class RoomPopup {
   constructor(scene, onJoinOrCreate) {
     this.scene = scene;
@@ -7,7 +6,6 @@ export default class RoomPopup {
   }
 
   createPopup() {
-    // Create container div
     const container = document.createElement('div');
     container.id = 'room-popup';
     container.style.position = 'absolute';
@@ -25,6 +23,13 @@ export default class RoomPopup {
       <h3>Enter Room ID or Create New</h3>
       <input id="room-id-input" type="text" placeholder="Room ID (optional)" style="padding: 5px; width: 80%;" />
       <br><br>
+      <label for="level-select">Choose Level:</label>
+      <select id="level-select" style="margin-top: 5px;">
+        <option value="1">Level 1</option>
+        <option value="2">Level 2</option>
+        <option value="3">Level 3</option>
+      </select>
+      <br><br>
       <button id="join-room-btn" style="margin-right: 10px;">Join Room</button>
       <button id="create-room-btn">Create Room</button>
     `;
@@ -35,15 +40,16 @@ export default class RoomPopup {
       const roomId = document.getElementById('room-id-input').value.trim();
       if (roomId) {
         this.destroy();
-        this.onJoinOrCreate(roomId); // call with specific roomId
+        this.onJoinOrCreate(roomId); // joining doesn't need level
       } else {
         alert('Enter a Room ID to join.');
       }
     };
 
     document.getElementById('create-room-btn').onclick = () => {
+      const level = document.getElementById('level-select').value;
       this.destroy();
-      this.onJoinOrCreate(null); // null means create new
+      this.onJoinOrCreate(null, level); // pass level when creating
     };
   }
 

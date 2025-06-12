@@ -1,24 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Phaser Tank Game</title>
   <style>
+    html,
     body {
       margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
       overflow: hidden;
-      background-color: #ccc;
     }
-    #game-container {
-      margin: 0 auto;
+
+    #game-container canvas {
       display: block;
-      width: 800px;
-      height: 600px;
+      margin: 0 auto;
     }
   </style>
 </head>
+
 <body>
   <div id="game-container"></div>
   <script type="module" src="/src/main.js"></script>
 </body>
+
 </html>

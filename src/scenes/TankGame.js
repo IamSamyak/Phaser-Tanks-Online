@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tileMapping, TILE_SIZE } from '../utils/tileMapping.js';
+import { setTileSize, TILE_SIZE, tileMapping } from '../utils/tileMapping.js';
 import BulletManager from '../managers/BulletManager.js';
 import SpawnManager from '../managers/SpawnManager.js';
 import TankController from '../managers/TankController.js';
@@ -26,15 +26,16 @@ export default class TankGame extends Phaser.Scene {
       frameWidth: 70,
       frameHeight: 65,
     });
+
     bonusTypes.forEach(bonus => {
       this.load.image(bonus.key, bonus.path);
     });
   }
 
-  connectWebSocket(roomId) {
+  connectWebSocket(roomId, level = "1") {
     const wsUrl = roomId
-      ? `ws://localhost:8080/ws/join/${roomId}`
-      : `ws://localhost:8080/ws/create`;
+      ? `ws://192.168.1.7:8080/ws/join/${roomId}`
+      : `ws://192.168.1.7:8080/ws/create?level=${level}`;
 
     this.socket = new WebSocket(wsUrl);
     this.messageHandler = new MessageHandler(this, this.socket);
@@ -46,6 +47,22 @@ export default class TankGame extends Phaser.Scene {
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       this.messageHandler.handle(data);
+
+      if (data.type === 'start') {
+        this.players = [];
+        this.players.push(data.playerId);
+        this.roomId = data.roomId;
+        console.log(`Connected to room ID: ${data.roomId} as Player ${data.playerId}`);
+
+        this.levelMap = data.levelMap.map(line => [...line]);
+        this.renderLevel(this.levelMap);
+
+        this.tank = this.spawnManager.spawnTank(data.x, data.y, data.direction);
+        this.asset = this.spawnManager.spawnAsset(13, 25, 'base', data.direction);
+
+        this.initializeGameplay();
+        this.showShareLinkUI(data.roomId);
+      }
     };
 
     this.socket.onclose = () => {
@@ -60,9 +77,19 @@ export default class TankGame extends Phaser.Scene {
   create() {
     this.spawnManager = new SpawnManager(this);
 
-    new RoomPopup(this, (roomId) => {
+    // Check if roomId exists in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('roomId');
+
+    if (roomId) {
+      // If roomId is in URL, skip RoomPopup and join directly
       this.connectWebSocket(roomId);
-    });
+    } else {
+      // Otherwise, show RoomPopup to create or join manually
+      new RoomPopup(this, (roomId, level) => {
+        this.connectWebSocket(roomId, level);
+      });
+    }
 
     this.anims.create({
       key: 'explode',
@@ -72,25 +99,32 @@ export default class TankGame extends Phaser.Scene {
     });
   }
 
-  initializeGameplay() {
-    this.tankSpeed = 100;
-    this.bulletSpeed = 100;
-    this.bonusGroup = this.add.group();
-    this.enemies = new Map();
-    this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
-    this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
+  calculateTileSize(levelMap) {
+    const screenWidth = this.sys.game.config.width;
+    const screenHeight = this.sys.game.config.height;
+
+    const cols = levelMap[0].length;
+    const rows = levelMap.length;
+
+    // Calculate maximum possible square tile size to fit the screen
+    const tileSizeX = Math.floor(screenWidth / cols);
+    const tileSizeY = Math.floor(screenHeight / rows);
+
+    this.dynamicTileSize = Math.min(tileSizeX, tileSizeY);
   }
 
   renderLevel(levelMap) {
+    this.calculateTileSize(levelMap);
     this.tileSprites = [];
+    this.levelMap = levelMap;
 
     for (let y = 0; y < levelMap.length; y++) {
       this.tileSprites[y] = [];
       for (let x = 0; x < levelMap[y].length; x++) {
         const char = levelMap[y][x];
         const tileName = tileMapping[char];
-        const xPos = x * TILE_SIZE;
-        const yPos = y * TILE_SIZE;
+        const xPos = x * this.dynamicTileSize;
+        const yPos = y * this.dynamicTileSize;
 
         if (!tileName || tileName === 'empty') {
           this.tileSprites[y][x] = null;
@@ -99,24 +133,35 @@ export default class TankGame extends Phaser.Scene {
 
         const tile = this.add.image(xPos, yPos, tileName);
         tile.setOrigin(0, 0);
-        tile.setScale(TILE_SIZE / 16);
+        tile.setDisplaySize(this.dynamicTileSize, this.dynamicTileSize);
         this.tileSprites[y][x] = tile;
       }
     }
 
-    // Optional: Draw grid coordinates
+    // Optional: coordinate grid for debugging
     for (let x = 0; x < levelMap[0].length; x++) {
-      this.add.text(x * TILE_SIZE + 10, 0, x.toString(), {
-        fontSize: '12px',
+      this.add.text(x * this.dynamicTileSize + 4, 0, x.toString(), {
+        fontSize: '10px',
         color: '#00ff00',
       });
     }
+
     for (let y = 0; y < levelMap.length; y++) {
-      this.add.text(0, y * TILE_SIZE + 8, y.toString(), {
-        fontSize: '12px',
+      this.add.text(0, y * this.dynamicTileSize + 2, y.toString(), {
+        fontSize: '10px',
         color: '#00ff00',
       });
     }
+  }
+
+  initializeGameplay() {
+    this.tankSpeed = 100;
+    this.bulletSpeed = 100;
+    this.bonusGroup = this.add.group();
+    this.enemies = new Map();
+
+    this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
+    this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
   }
 
   spawnCollisionEffect(x, y) {
@@ -125,7 +170,41 @@ export default class TankGame extends Phaser.Scene {
 
   update(time) {
     if (!this.tank || !this.tankController) return;
-
     this.tankController.update(time);
+  }
+
+  showShareLinkUI(roomId) {
+    const gameUrl = `${window.location.origin}?roomId=${roomId}`;
+    const shareDiv = document.createElement('div');
+    shareDiv.id = 'share-link-ui';
+    shareDiv.style.position = 'absolute';
+    shareDiv.style.top = '10px';
+    shareDiv.style.right = '10px';
+    shareDiv.style.backgroundColor = '#222';
+    shareDiv.style.color = '#fff';
+    shareDiv.style.padding = '10px';
+    shareDiv.style.borderRadius = '8px';
+    shareDiv.style.zIndex = 1000;
+    shareDiv.innerHTML = `
+      <div style="margin-bottom: 5px;">Room Link:</div>
+      <input type="text" value="${gameUrl}" id="room-link" readonly style="width: 200px; margin-bottom: 5px;">
+      <button id="copy-link">Copy</button>
+    `;
+
+    document.body.appendChild(shareDiv);
+
+    document.getElementById('copy-link').onclick = () => {
+      const input = document.getElementById('room-link');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(input.value)
+        .then(() => alert('Room link copied to clipboard!'))
+        .catch(() => alert('Failed to copy link.'));
+    };
+  }
+
+  shutdownShareLinkUI() {
+    const el = document.getElementById('share-link-ui');
+    if (el) el.remove();
   }
 }

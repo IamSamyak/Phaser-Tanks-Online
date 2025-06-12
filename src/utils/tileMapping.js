@@ -7,5 +7,8 @@ export const tileMapping = {
   '-': 'ice',
 };
 
+export let TILE_SIZE = 32;
+export const setTileSize = (size) => {
+  TILE_SIZE = size;
+};
 
-export const TILE_SIZE = 32;

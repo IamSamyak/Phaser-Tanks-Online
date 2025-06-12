@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
-import { TILE_SIZE } from '../utils/tileMapping.js';
-import { getAngleFromDirection, getDirectionFromAngle } from '../utils/directionHelper.js';
+import { getAngleFromDirection } from '../utils/directionHelper.js';
 
 export default class BulletManager {
   constructor(scene, levelMap, tankGameScene, socket) {
@@ -16,7 +15,6 @@ export default class BulletManager {
     if (!tank) return;
 
     const angle = Phaser.Math.Snap.To(Phaser.Math.Wrap(tank.angle, 0, 360), 90);
-    console.log('tank is ',tank.x / TILE_SIZE,tank.y / TILE_SIZE,angle);
     
     // Send request to backend to fire bullet (backend assigns bulletId)
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -28,12 +26,12 @@ export default class BulletManager {
 
   createOrUpdateBullet(bulletId, x, y, direction) {
     let bullet = this.activeBullets.get(bulletId);
-    x *= TILE_SIZE;
-    y *= TILE_SIZE;
+    x *= this.scene.dynamicTileSize;
+    y *= this.scene.dynamicTileSize;
 
     if (!bullet) {
       bullet = this.scene.add.image(x, y, 'bullet');
-      bullet.setDisplaySize(TILE_SIZE / 2, TILE_SIZE / 2);
+      bullet.setDisplaySize(this.scene.dynamicTileSize / 2, this.scene.dynamicTileSize / 2);
       bullet.setOrigin(0.5);
       bullet.setAngle(getAngleFromDirection(direction));
       bullet.bulletId = bulletId;

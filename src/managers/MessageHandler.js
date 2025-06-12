@@ -1,4 +1,4 @@
-import { TILE_SIZE, tileMapping } from '../utils/tileMapping.js';
+import { tileMapping } from '../utils/tileMapping.js';
 import { getAngleFromDirection } from '../utils/directionHelper.js';
 
 export default class MessageHandler {
@@ -11,158 +11,144 @@ export default class MessageHandler {
     const scene = this.scene;
 
     switch (data.type) {
-      case 'start': {
-        scene.playerNumber = data.playerNumber;
-        scene.roomId = data.roomId;
-        console.log(`Connected to room ID: ${data.roomId} as Player ${data.playerNumber}`);
 
-        scene.levelMap = data.levelMap.map(line => [...line]);
-        scene.renderLevel(scene.levelMap);
-
-        scene.tank = scene.spawnManager.spawnTank(data.x, data.y, data.direction);
-        scene.asset = scene.spawnManager.spawnAsset(13, 25, 'base', data.direction);
-
-        scene.initializeGameplay();
+      case 'base_destroyed': {
+        alert('Game Over! Your base has been destroyed.');
+        // Optionally: stop the game or redirect to lobby/menu
+        scene.scene.pause(); // Pause the game scene
+        // You could also add custom game over screen logic here
         break;
       }
 
-      case 'spawn_other':
-        if (scene.playerNumber !== data.playerNumber) {
-          if (!scene.otherTank) {
-            scene.otherTank = scene.spawnManager.spawnTank(data.x, data.y, data.direction);
-          }
+      case 'spawn_other': {
+        const { playerId, x, y, direction } = data;
+
+        // Add to scene.players if not already present
+        if (!scene.players.includes(playerId)) {
+          scene.players.push(playerId);
         }
-        break;
-
-      case 'enemy_spawn': {
-        const { enemyId, x, y, direction } = data;
-        if (scene.enemies.has(enemyId)) return;
-
-        const enemyTank = scene.spawnManager.spawnTank(x, y, direction);
-        enemyTank.setDepth(1);
-        scene.enemies.set(enemyId, enemyTank);
-        break;
-      }
-
-      case 'enemy_destroyed': {
-        const { enemyId } = data;
-        const enemy = scene.enemies.get(enemyId);
-        if (enemy) {
-          scene.spawnCollisionEffect(enemy.x, enemy.y);
-          enemy.destroy();
-          scene.enemies.delete(enemyId);
+        // Spawn the other player's tank if it doesn't exist yet
+        if (!scene.playersMap) scene.playersMap = {};
+        if (!scene.playersMap[playerId]) {
+          const otherTank = scene.spawnManager.spawnTank(x, y, direction);
+          scene.playersMap[playerId] = otherTank;
         }
+
         break;
       }
+
 
       case 'player_move':
       case 'move': {
         const tank = data.playerNumber === scene.playerNumber ? scene.tank : scene.otherTank;
         if (tank) {
-          tank.setPosition(data.x * TILE_SIZE, data.y * TILE_SIZE);
+          tank.setPosition(data.x * this.scene.dynamicTileSize, data.y * this.scene.dynamicTileSize);
           tank.setAngle(getAngleFromDirection(data.direction));
         }
         break;
       }
 
-      case 'enemy_move_batch':
-        data.enemies.forEach(({ enemyId, x, y, direction }) => {
-          const enemy = scene.enemies.get(enemyId);
-          if (enemy) {
-            enemy.setPosition(x * TILE_SIZE, y * TILE_SIZE);
-            enemy.setAngle(getAngleFromDirection(direction));
+      case 'game_tick': {
+        const {
+          bullets = [],
+          bonuses = [],
+          tiles = [],
+          explosions = [],
+          enemyEvents = [],
+          playerEvents = [],
+        } = data;
+
+        playerEvents.forEach((event) => {
+          const { action, playerId, x, y, direction } = event;
+          const tank = scene.players[playerId];
+
+          if (action === 'spawn') {
+            if (!tank) {
+              const newTank = scene.spawnManager.spawnTank(x, y, direction);
+              newTank.setDepth(2);
+              scene.players[playerId] = newTank;
+            }
+          } else if (action === 'move') {
+            if (tank) {
+              tank.setPosition(x * this.scene.dynamicTileSize, y * this.scene.dynamicTileSize);
+              tank.setAngle(getAngleFromDirection(direction));
+            }
+          } else if (action === 'destroy') {
+            if (tank) {
+              scene.spawnCollisionEffect(tank.x, tank.y);
+              tank.destroy();
+              delete scene.players[playerId];
+            }
           }
         });
-        break;
 
-      case 'bullet_move_batch':
-        data.bullets.forEach(({ bulletId, x, y, direction }) => {
-          scene.bulletManager?.createOrUpdateBullet(bulletId, x, y, direction);
+        // Update bullets
+        bullets.forEach(({ bulletId, x, y, direction, action }) => {
+          if (action === 'destroy') {
+            scene.bulletManager?.destroyBullet(bulletId);
+          } else {
+            scene.bulletManager?.createOrUpdateBullet(bulletId, x, y, direction);
+          }
         });
-        break;
 
-      case 'bullet_destroy_batch':
-        data.bulletIds.forEach((bulletId) => {
-          scene.bulletManager?.destroyBullet(bulletId);
+        // Update bonuses
+        bonuses.forEach(({ type, bonusId, x, y }) => {
+          if (type === 'spawn') {
+            scene.spawnManager.spawnBonus(bonusId, x, y);
+          } else if (type === 'remove') {
+            scene.spawnManager.removeBonus(bonusId);
+          }
         });
-        break;
 
-      case 'tile_update_batch':
-        data.tiles.forEach(({ x: tx, y: ty, tile: tileChar }) => {
+        // Tile updates
+        tiles.forEach(({ x: tx, y: ty, tile: tileChar }) => {
           scene.levelMap[ty][tx] = tileChar;
-
           const oldTile = scene.tileSprites[ty][tx];
           oldTile?.destroy();
 
           const tileName = tileMapping[tileChar];
           if (tileName && tileName !== 'empty') {
-            const tile = scene.add.image(tx * TILE_SIZE, ty * TILE_SIZE, tileName);
-            tile.setOrigin(0, 0).setScale(TILE_SIZE / 16);
+            const tile = scene.add.image(tx * this.scene.dynamicTileSize, ty * this.scene.dynamicTileSize, tileName);
+            tile.setOrigin(0, 0).setScale(2);
             scene.tileSprites[ty][tx] = tile;
           } else {
             scene.tileSprites[ty][tx] = null;
           }
         });
-        break;
 
-      case 'explosion_batch':
-        data.explosions.forEach(({ x, y }) => {
+        // Explosions
+        explosions.forEach(({ x, y }) => {
           scene.spawnManager.spawnExplosion(x, y);
         });
-        break;
 
-      case 'fire_bullet':
-        scene.bulletManager?.createOrUpdateBullet(data.bulletId, data.x, data.y, data.direction ?? 0);
-        break;
+        // ✅ Unified enemy event handling
+        enemyEvents.forEach((event) => {
+          const { action, enemyId, x, y, direction } = event;
 
-      case 'player_destroyed': {
-        const tank = data.playerNumber === scene.playerNumber ? scene.tank : scene.otherTank;
-        if (tank) {
-          tank.destroy();
-          tank.base?.destroy();
-          if (data.playerNumber === scene.playerNumber) scene.tank = null;
-          else scene.otherTank = null;
-        }
-        break;
-      }
+          if (action === 'spawn') {
+            if (!scene.enemies.has(enemyId)) {
+              const tank = scene.spawnManager.spawnTank(x, y, direction);
+              tank.setDepth(1);
+              scene.enemies.set(enemyId, tank);
+            }
+          } else if (action === 'move') {
+            const enemy = scene.enemies.get(enemyId);
+            if (enemy) {
+              enemy.setPosition(x * this.scene.dynamicTileSize, y * this.scene.dynamicTileSize);
+              enemy.setAngle(getAngleFromDirection(direction));
+            }
+          } else if (action === 'destroy') {
+            const enemy = scene.enemies.get(enemyId);
+            if (enemy) {
+              scene.spawnCollisionEffect(enemy.x, enemy.y);
+              enemy.destroy();
+              scene.enemies.delete(enemyId);
+            }
+          }
+        });
 
-      case 'bullet_destroy':
-        scene.bulletManager?.destroyBullet(data.bulletId);
-        break;
-
-      case 'bonus_spawn':
-        scene.spawnManager.spawnBonus(data.bonusId, data.x, data.y, data.bonusType);
-        break;
-
-      case 'bonus_remove':
-        scene.spawnManager.removeBonus(data.bonusId);
-        break;
-
-      case 'explosion':
-        scene.spawnManager.spawnExplosion(data.x, data.y);
-        break;
-
-      case 'tile_update': {
-        const tx = data.x, ty = data.y, tileChar = data.tile;
-        scene.levelMap[ty][tx] = tileChar;
-
-        scene.tileSprites[ty][tx]?.destroy();
-
-        const tileName = tileMapping[tileChar];
-        if (tileName && tileName !== 'empty') {
-          const tile = scene.add.image(tx * TILE_SIZE, ty * TILE_SIZE, tileName);
-          tile.setOrigin(0, 0).setScale(TILE_SIZE / 16);
-          scene.tileSprites[ty][tx] = tile;
-        } else {
-          scene.tileSprites[ty][tx] = null;
-        }
         break;
       }
-
-      case 'error':
-        console.error('Server error:', data.message);
-        alert(data.message);
-        break;
 
       default:
         console.warn('Unknown message type:', data.type);
