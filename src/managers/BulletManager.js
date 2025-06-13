@@ -15,7 +15,7 @@ export default class BulletManager {
     if (!tank) return;
 
     const angle = Phaser.Math.Snap.To(Phaser.Math.Wrap(tank.angle, 0, 360), 90);
-    
+
     // Send request to backend to fire bullet (backend assigns bulletId)
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({
@@ -25,20 +25,19 @@ export default class BulletManager {
   }
 
   createOrUpdateBullet(bulletId, x, y, direction) {
+    const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
     let bullet = this.activeBullets.get(bulletId);
-    x *= this.scene.dynamicTileSize;
-    y *= this.scene.dynamicTileSize;
 
     if (!bullet) {
-      bullet = this.scene.add.image(x, y, 'bullet');
+      bullet = this.scene.add.image(px, py, 'bullet');
       bullet.setDisplaySize(this.scene.dynamicTileSize / 2, this.scene.dynamicTileSize / 2);
       bullet.setOrigin(0.5);
       bullet.setAngle(getAngleFromDirection(direction));
       bullet.bulletId = bulletId;
       this.activeBullets.set(bulletId, bullet);
     } else {
-      bullet.x = x;
-      bullet.y = y;
+      bullet.x = px;
+      bullet.y = py;
       bullet.setAngle(getAngleFromDirection(direction));
     }
   }

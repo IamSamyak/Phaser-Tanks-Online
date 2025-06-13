@@ -7,15 +7,10 @@ export default class SpawnManager {
     this.bonuses = new Map();
   }
 
-  toPixelCoords(x, y) {
-    const size = this.scene.dynamicTileSize;
-    return [x * size, y * size];
-  }
-
   spawnTank(x, y, direction) {
-    const [centerX, centerY] = this.toPixelCoords(x, y);
+    const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
     const size = this.scene.dynamicTileSize;
-    const tank = this.scene.add.image(centerX, centerY, 'tank');
+    const tank = this.scene.add.image(px, py, 'tank');
     tank.setOrigin(0.5, 0.5);
     tank.setDisplaySize(size * 2, size * 2);
     tank.angle = getAngleFromDirection(direction);
@@ -23,9 +18,9 @@ export default class SpawnManager {
   }
 
   spawnAsset(x, y, assetKey, direction) {
-    const [centerX, centerY] = this.toPixelCoords(x, y);
+    const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
     const size = this.scene.dynamicTileSize;
-    const asset = this.scene.add.image(centerX, centerY, assetKey);
+    const asset = this.scene.add.image(px, py, assetKey);
     asset.setOrigin(0.5, 0.5);
     asset.setDisplaySize(size * 2, size * 2);
     asset.angle = getAngleFromDirection(direction);
@@ -33,7 +28,7 @@ export default class SpawnManager {
   }
 
   spawnExplosion(x, y) {
-    const [px, py] = this.toPixelCoords(x, y);
+    const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
     const explosion = this.scene.add.sprite(px, py, 'explosion');
     explosion.setOrigin(0.5);
     explosion.setScale(1);
@@ -49,7 +44,7 @@ export default class SpawnManager {
       return;
     }
 
-    const [px, py] = this.toPixelCoords(x, y);
+    const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
     const size = this.scene.dynamicTileSize;
     const bonus = this.scene.add.image(px, py, bonusTypeObj.key);
     bonus.setOrigin(0.5);

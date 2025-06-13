@@ -6,6 +6,7 @@ import TankController from '../managers/TankController.js';
 import RoomPopup from '../ui/RoomPopup.js';
 import { bonusTypes } from '../utils/bonusTypes.js';
 import MessageHandler from '../managers/MessageHandler.js';
+import CoordinateHelper from '../managers/CoordinateHelper.js';
 
 export default class TankGame extends Phaser.Scene {
   constructor() {
@@ -50,6 +51,7 @@ export default class TankGame extends Phaser.Scene {
 
       if (data.type === 'start') {
         this.players = [];
+        this.player = data.playerId;
         this.players.push(data.playerId);
         this.roomId = data.roomId;
         console.log(`Connected to room ID: ${data.roomId} as Player ${data.playerId}`);
@@ -77,15 +79,12 @@ export default class TankGame extends Phaser.Scene {
   create() {
     this.spawnManager = new SpawnManager(this);
 
-    // Check if roomId exists in URL
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('roomId');
 
     if (roomId) {
-      // If roomId is in URL, skip RoomPopup and join directly
       this.connectWebSocket(roomId);
     } else {
-      // Otherwise, show RoomPopup to create or join manually
       new RoomPopup(this, (roomId, level) => {
         this.connectWebSocket(roomId, level);
       });
@@ -106,7 +105,6 @@ export default class TankGame extends Phaser.Scene {
     const cols = levelMap[0].length;
     const rows = levelMap.length;
 
-    // Calculate maximum possible square tile size to fit the screen
     const tileSizeX = Math.floor(screenWidth / cols);
     const tileSizeY = Math.floor(screenHeight / rows);
 
@@ -118,13 +116,19 @@ export default class TankGame extends Phaser.Scene {
     this.tileSprites = [];
     this.levelMap = levelMap;
 
+    const totalWidth = levelMap[0].length * this.dynamicTileSize;
+    const totalHeight = levelMap.length * this.dynamicTileSize;
+    this.offsetX = (this.sys.game.config.width - totalWidth) / 2;
+    this.offsetY = (this.sys.game.config.height - totalHeight) / 2;
+
+    this.coordHelper = new CoordinateHelper(this.offsetX, this.offsetY, this.dynamicTileSize);
+
     for (let y = 0; y < levelMap.length; y++) {
       this.tileSprites[y] = [];
       for (let x = 0; x < levelMap[y].length; x++) {
         const char = levelMap[y][x];
         const tileName = tileMapping[char];
-        const xPos = x * this.dynamicTileSize;
-        const yPos = y * this.dynamicTileSize;
+        const { x: xPos, y: yPos } = this.coordHelper.toPixel(x, y);
 
         if (!tileName || tileName === 'empty') {
           this.tileSprites[y][x] = null;
@@ -138,16 +142,18 @@ export default class TankGame extends Phaser.Scene {
       }
     }
 
-    // Optional: coordinate grid for debugging
+    // Optional debug grid
     for (let x = 0; x < levelMap[0].length; x++) {
-      this.add.text(x * this.dynamicTileSize + 4, 0, x.toString(), {
+      const { x: xPos } = this.coordHelper.toPixel(x, 0);
+      this.add.text(xPos + 4, this.offsetY - 10, x.toString(), {
         fontSize: '10px',
         color: '#00ff00',
       });
     }
 
     for (let y = 0; y < levelMap.length; y++) {
-      this.add.text(0, y * this.dynamicTileSize + 2, y.toString(), {
+      const { y: yPos } = this.coordHelper.toPixel(0, y);
+      this.add.text(this.offsetX - 12, yPos + 2, y.toString(), {
         fontSize: '10px',
         color: '#00ff00',
       });
