@@ -27,11 +27,24 @@ export default class SpawnManager {
     return asset;
   }
 
+  // spawnExplosion(x, y) {
+  //   const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
+  //   const explosion = this.scene.add.sprite(px, py, 'explosion');
+  //   explosion.setOrigin(0.5);
+  //   explosion.setScale(1);
+  //   this.scene.time.delayedCall(500, () => explosion.destroy());
+  // }
+
   spawnExplosion(x, y) {
     const { x: px, y: py } = this.scene.coordHelper.toPixel(x, y);
     const explosion = this.scene.add.sprite(px, py, 'explosion');
     explosion.setOrigin(0.5);
-    explosion.setScale(1);
+
+    // Dynamically calculate scale relative to tile size
+    const baseExplosionSize = 70; // from explosion sprite frame size
+    const scale = (this.scene.dynamicTileSize * 2) / baseExplosionSize;
+    explosion.setScale(scale);
+
     this.scene.time.delayedCall(500, () => explosion.destroy());
   }
 

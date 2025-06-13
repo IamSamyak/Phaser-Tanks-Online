@@ -8,6 +8,11 @@ import { bonusTypes } from '../utils/bonusTypes.js';
 import MessageHandler from '../managers/MessageHandler.js';
 import CoordinateHelper from '../managers/CoordinateHelper.js';
 
+function vibrate(duration = 30) {
+  if (navigator.vibrate) {
+    navigator.vibrate(duration);
+  }
+}
 export default class TankGame extends Phaser.Scene {
   constructor() {
     super({ key: 'TankGame' });
@@ -23,6 +28,9 @@ export default class TankGame extends Phaser.Scene {
     this.load.image('tank', '/assets/PlayerAssets/tankv1.png');
     this.load.image('bullet', '/assets/bullet.png');
     this.load.image('base', '/assets/base.png');
+
+    this.load.image('fireButtonUp', '/assets/fire_button_up.png')
+    this.load.image('fireButtonDown', '/assets/fire_button_down.png')
     this.load.spritesheet('explosion', '/assets/explosion.png', {
       frameWidth: 70,
       frameHeight: 65,
@@ -35,8 +43,12 @@ export default class TankGame extends Phaser.Scene {
 
   connectWebSocket(roomId, level = "1") {
     const wsUrl = roomId
-      ? `ws://192.168.1.7:8080/ws/join/${roomId}`
-      : `ws://192.168.1.7:8080/ws/create?level=${level}`;
+      ? `ws://192.168.81.73:8080/ws/join/${roomId}`
+      : `ws://192.168.81.73:8080/ws/create?level=${level}`;
+    // connectWebSocket(roomId, level = "1") {
+    //   const wsUrl = roomId
+    //     ? `ws://localhost:8080/ws/join/${roomId}`
+    //     : `ws://localhost:8080/ws/create?level=${level}`;
 
     this.socket = new WebSocket(wsUrl);
     this.messageHandler = new MessageHandler(this, this.socket);
@@ -168,6 +180,73 @@ export default class TankGame extends Phaser.Scene {
 
     this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
     this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
+
+    this.createJoystick();
+    this.createFireButton();
+  }
+
+  createJoystick() {
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+
+    const basePaddingRatio = 0.08;  // 5% of screen width
+    const baseRadiusRatio = 0.1;   // 8% of the smaller dimension
+
+    const basePadding = screenWidth * basePaddingRatio;
+    const radius = Math.floor(Math.min(screenWidth, screenHeight) * baseRadiusRatio);
+
+    const joystickX = basePadding + radius;
+    const joystickY = screenHeight - basePadding - radius;
+
+    this.joystick = this.plugins.get('rexVirtualJoystick').add(this, {
+      x: joystickX,
+      y: joystickY,
+      radius: radius,
+      base: this.add.circle(0, 0, radius, 0x888888),
+      thumb: this.add.circle(0, 0, radius / 2, 0xcccccc),
+      dir: '8dir',
+      forceMin: 10,
+      enable: true
+    });
+  }
+
+  //FireButton
+  createFireButton() {
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+
+    const basePaddingRatio = 0.08;
+    const baseRadiusRatio = 0.1;
+
+    const basePadding = screenWidth * basePaddingRatio;
+    const radius = Math.floor(Math.min(screenWidth, screenHeight) * baseRadiusRatio);
+
+    const fireButtonX = screenWidth - basePadding - radius;
+    const fireButtonY = screenHeight - basePadding - radius;
+
+    this.fireButton = this.add.image(fireButtonX, fireButtonY, 'fireButtonUp')
+      .setInteractive({ useHandCursor: true })
+      .setScrollFactor(0)
+      .setDisplaySize(radius * 2, radius * 2);
+
+    // Pointer down = fire and change image
+    this.fireButton.on('pointerdown', () => {
+      this.fireButton.setTexture('fireButtonDown');
+      vibrate(5);
+
+      if (this.tankController) {
+        this.tankController.bulletManager.fireBullet(this.tank);
+      }
+    });
+
+    // Revert back when pointer is up
+    this.fireButton.on('pointerup', () => {
+      this.fireButton.setTexture('fireButtonUp');
+    });
+
+    this.fireButton.on('pointerout', () => {
+      this.fireButton.setTexture('fireButtonUp');
+    });
   }
 
   spawnCollisionEffect(x, y) {
@@ -176,7 +255,21 @@ export default class TankGame extends Phaser.Scene {
 
   update(time) {
     if (!this.tank || !this.tankController) return;
+
+    if (this.joystick) {
+      const { forceX, forceY } = this.joystick;
+      if (typeof forceX === 'number' && typeof forceY === 'number') {
+        this.tankController.handleJoystickInput(forceX, forceY, time);
+
+      }
+    }
+
     this.tankController.update(time);
+
+    if (this.tank.base) {
+      this.tank.base.updatePosition(this.tank.x, this.tank.y);
+    }
+
   }
 
   showShareLinkUI(roomId) {

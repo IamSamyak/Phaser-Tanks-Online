@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import TankGame from './scenes/TankGame.js';
+import VirtualJoystickPlugin from 'phaser3-rex-plugins/plugins/virtualjoystick-plugin.js';
+
 
 function getLandscapeSize() {
   const isLandscape = window.innerWidth > window.innerHeight;
@@ -8,48 +10,35 @@ function getLandscapeSize() {
   return { width, height };
 }
 
-function isPortraitMode() {
-  return window.innerHeight > window.innerWidth;
-}
+const { width, height } = getLandscapeSize();
 
-function removeRotateOverlayFromDOM() {
-  const rotateDiv = document.getElementById('rotate-device');
-  if (rotateDiv && rotateDiv.parentNode) {
-    rotateDiv.parentNode.removeChild(rotateDiv); // ✅ Completely removes the element
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width,
+  height,
+  backgroundColor: '#000',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+  scene: [TankGame],
+  input: {
+    activePointers: 3,  //  Enables up to 3 simultaneous touch points
+    touch: {
+      target: window
+    }
+  },
+  plugins: {
+    global: [
+      {
+        key: 'rexVirtualJoystick',
+        plugin: VirtualJoystickPlugin,
+        start: true
+      }
+    ]
   }
-}
+  
+};
 
-window.addEventListener('resize', () => {
-  location.reload();
-});
-
-window.addEventListener('orientationchange', () => {
-  location.reload();
-});
-
-window.addEventListener('load', () => {
-  if (isPortraitMode()) {
-    // Don't initialize game in portrait
-    return;
-  }
-
-  const { width, height } = getLandscapeSize();
-
-  const config = {
-    type: Phaser.AUTO,
-    parent: 'game-container',
-    width,
-    height,
-    backgroundColor: '#fff',
-    scale: {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-    },
-    scene: [TankGame],
-  };
-
-  new Phaser.Game(config);
-
-  // ✅ Remove the overlay once game loads in landscape
-  removeRotateOverlayFromDOM();
-});  
+new Phaser.Game(config);
