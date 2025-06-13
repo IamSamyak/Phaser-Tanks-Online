@@ -51,7 +51,7 @@ export default class TankGame extends Phaser.Scene {
 
       if (data.type === 'start') {
         this.players = [];
-        this.player = data.playerId;
+        this.playerId = data.playerId;
         this.players.push(data.playerId);
         this.roomId = data.roomId;
         console.log(`Connected to room ID: ${data.roomId} as Player ${data.playerId}`);

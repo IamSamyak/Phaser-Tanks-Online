@@ -20,7 +20,7 @@ export default class MessageHandler {
       }
 
       case 'spawn_other':
-        if (scene.playerNumber !== data.playerNumber) {
+        if (scene.playerId !== data.playerId) {
           if (!scene.otherTank) {
             scene.otherTank = scene.spawnManager.spawnTank(data.x, data.y, data.direction);
           }
@@ -29,7 +29,7 @@ export default class MessageHandler {
 
       case 'player_move':
       case 'move': {
-        const tank = data.playerNumber === scene.playerNumber ? scene.tank : scene.otherTank;
+        const tank = data.playerId === scene.playerId ? scene.tank : scene.otherTank;
         if (tank) {
           const { x: px, y: py } = coord.toPixel(data.x, data.y);
           tank.setPosition(px, py);
