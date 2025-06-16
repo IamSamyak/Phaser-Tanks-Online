@@ -12,28 +12,18 @@ export default class MessageHandler {
     const coord = scene.coordHelper;
 
     switch (data.type) {
-
       case 'base_destroyed': {
         alert('Game Over! Your base has been destroyed.');
         scene.scene.pause();
         break;
       }
 
-      case 'spawn_other':
-        if (scene.playerId !== data.playerId) {
-          if (!scene.otherTank) {
-            scene.otherTank = scene.spawnManager.spawnTank(data.x, data.y, data.direction);
-          }
-        }
-        break;
-
-      case 'player_move':
-      case 'move': {
-        const tank = data.playerId === scene.playerId ? scene.tank : scene.otherTank;
-        if (tank) {
-          const { x: px, y: py } = coord.toPixel(data.x, data.y);
-          tank.setPosition(px, py);
-          tank.setAngle(getAngleFromDirection(data.direction));
+      case 'spawn_new_player': {
+        const { playerId, x, y, direction } = data;
+        if (playerId !== scene.playerId && !scene.players[playerId]) {
+          const newTank = scene.spawnManager.spawnTank(x, y, direction);
+          scene.players[playerId] = newTank;
+          console.log(`New player ${playerId} spawned at (${x},${y})`);
         }
         break;
       }
@@ -45,12 +35,13 @@ export default class MessageHandler {
           tiles = [],
           explosions = [],
           enemyEvents = [],
-          playerEvents = [],
+          playerEvents = [] // ✅ Updated key
         } = data;
-
-        playerEvents.forEach((event) => {
-          const { action, playerId, x, y, direction } = event;
-          const tank = scene.players[playerId];
+        console.log('player evensts ',data);
+        
+        // ✅ Unified player handling
+        playerEvents.forEach(({ action, playerId, x, y, direction }) => {
+          let tank = scene.players[playerId];
 
           if (action === 'spawn') {
             if (!tank) {
@@ -110,9 +101,7 @@ export default class MessageHandler {
           scene.spawnManager.spawnExplosion(x, y);
         });
 
-        enemyEvents.forEach((event) => {
-          const { action, enemyId, x, y, direction } = event;
-
+        enemyEvents.forEach(({ action, enemyId, x, y, direction }) => {
           if (action === 'spawn') {
             if (!scene.enemies.has(enemyId)) {
               const tank = scene.spawnManager.spawnTank(x, y, direction);

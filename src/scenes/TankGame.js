@@ -43,12 +43,8 @@ export default class TankGame extends Phaser.Scene {
 
   connectWebSocket(roomId, level = "1") {
     const wsUrl = roomId
-      ? `ws://192.168.81.73:8080/ws/join/${roomId}`
-      : `ws://192.168.81.73:8080/ws/create?level=${level}`;
-    // connectWebSocket(roomId, level = "1") {
-    //   const wsUrl = roomId
-    //     ? `ws://localhost:8080/ws/join/${roomId}`
-    //     : `ws://localhost:8080/ws/create?level=${level}`;
+      ? `ws://localhost:8080/ws/join/${roomId}`
+      : `ws://localhost:8080/ws/create?level=${level}`;
 
     this.socket = new WebSocket(wsUrl);
     this.messageHandler = new MessageHandler(this, this.socket);
@@ -62,18 +58,26 @@ export default class TankGame extends Phaser.Scene {
       this.messageHandler.handle(data);
 
       if (data.type === 'start') {
-        this.players = [];
+        this.players = {}; // Unified map for all tanks
         this.playerId = data.playerId;
-        this.players.push(data.playerId);
         this.roomId = data.roomId;
         console.log(`Connected to room ID: ${data.roomId} as Player ${data.playerId}`);
 
         this.levelMap = data.levelMap.map(line => [...line]);
         this.renderLevel(this.levelMap);
 
-        this.tank = this.spawnManager.spawnTank(data.x, data.y, data.direction);
-        this.asset = this.spawnManager.spawnAsset(13, 25, 'base', data.direction);
+        // Spawn all players (including self)
+        data.playerEvents.forEach(({ playerId, x, y, direction }) => {
+          const tank = this.spawnManager.spawnTank(x, y, direction);
+          tank.setDepth(2);
+          this.players[playerId] = tank;
 
+          if (playerId === this.playerId) {
+            this.tank = tank; // Direct reference to your own tank if needed
+          }
+        });
+
+        this.asset = this.spawnManager.spawnAsset(13, 25, 'base', "UP");
         this.initializeGameplay();
         this.showShareLinkUI(data.roomId);
       }
