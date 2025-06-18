@@ -10,7 +10,8 @@ export default class MessageHandler {
   handle(data) {
     const scene = this.scene;
     const coord = scene.coordHelper;
-
+    
+      console.log('player evensts ',data);
     switch (data.type) {
       case 'base_destroyed': {
         alert('Game Over! Your base has been destroyed.');
@@ -37,8 +38,6 @@ export default class MessageHandler {
           enemyEvents = [],
           playerEvents = [] // ✅ Updated key
         } = data;
-        console.log('player evensts ',data);
-        
         // ✅ Unified player handling
         playerEvents.forEach(({ action, playerId, x, y, direction }) => {
           let tank = scene.players[playerId];
@@ -56,6 +55,7 @@ export default class MessageHandler {
               tank.setAngle(getAngleFromDirection(direction));
             }
           } else if (action === 'destroy') {
+            debugger
             if (tank) {
               scene.spawnCollisionEffect(tank.x, tank.y);
               tank.destroy();

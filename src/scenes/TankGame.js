@@ -185,9 +185,19 @@ export default class TankGame extends Phaser.Scene {
     this.bulletManager = new BulletManager(this, this.levelMap, this, this.socket);
     this.tankController = new TankController(this, this.tank, this.bulletManager, this.levelMap);
 
-    this.createJoystick();
-    this.createFireButton();
+    if (this.isMobileDevice()) {
+      this.createJoystick();
+      this.createFireButton();
+    }
   }
+
+  isMobileDevice() {
+    return (
+      /Android|iPhone|iPad|iPod|iOS/i.test(navigator.userAgent) ||
+      window.innerWidth <= 768
+    );
+  }
+
 
   createJoystick() {
     const screenWidth = this.scale.width;
